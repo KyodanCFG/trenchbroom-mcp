@@ -1,0 +1,25 @@
+{
+  "name": "trenchbroom-mcp",
+  "version": "0.1.0",
+  "description": "MCP server for editing Quake-format .map files (TrenchBroom-compatible)",
+  "type": "module",
+  "bin": {
+    "trenchbroom-mcp": "dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "test": "tsc && node --test \"test/**/*.test.js\"",
+    "start": "node dist/index.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.17.0",
+    "zod": "^3.25.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "typescript": "^5.7.0"
+  }
+}

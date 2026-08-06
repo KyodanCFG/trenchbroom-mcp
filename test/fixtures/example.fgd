@@ -1,0 +1,33 @@
+// Minimal Quake-style FGD for tests
+
+@BaseClass = Targetname
+[
+	targetname(target_source) : "Name" : : "Name other entities refer to."
+]
+
+@BaseClass = Appearflags
+[
+	spawnflags(Flags) =
+	[
+		256 : "Not in Easy" : 0
+		512 : "Not in Normal" : 0
+	]
+]
+
+@PointClass base(Targetname, Appearflags) color(255 255 40) size(-8 -8 -8, 8 8 8) = light : "Invisible light source"
+[
+	light(integer) : "Brightness" : 300
+	style(choices) : "Appearance" : 0 =
+	[
+		0 : "Normal"
+		1 : "Flicker A"
+		10 : "Fluorescent flicker"
+	]
+]
+
+@SolidClass base(Targetname) = func_door : "Basic door"
+[
+	angle(integer) : "Move direction" : 0 : "-1 = up, -2 = down"
+	speed(integer) : "Speed" : 100
+	wait(integer) : "Wait before close" : 3
+]
