@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import * as fs from "node:fs";
 import * as path from "node:path";
+import * as os from "node:os";
 import { fileURLToPath } from "node:url";
 
 import { parseMap } from "../dist/map/parser.js";
@@ -11,7 +12,7 @@ import { brushVertices, brushBounds, mapBounds } from "../dist/map/geometry.js";
 import { makeBoxBrush, translateEntity, usesValveFormat } from "../dist/map/builder.js";
 import { renderView } from "../dist/render/svg.js";
 import { parseFgd, resolveClass } from "../dist/fgd/parser.js";
-import { parseCompileOutput } from "../dist/compile.js";
+import { parseCompileOutput, removeCreatedLogs } from "../dist/compile.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const fixture = fs.readFileSync(path.join(here, "fixtures", "example.map"), "utf8");
@@ -212,4 +213,28 @@ test("compile: an error banner is read as the line that follows it", () => {
 
   const { errors } = parseCompileOutput(output);
   assert.deepEqual(errors, ["line 6: Invalid brush plane format"]);
+});
+
+test("compile: only the logs a compile created are cleaned up", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tb-mcp-logs-"));
+  try {
+    const mine = path.join(dir, "vis.log");
+    const alsoMine = path.join(dir, "e1m1.log");
+    const theirs = path.join(dir, "light.log");
+    fs.writeFileSync(theirs, "from an earlier compile by hand\n");
+
+    // Only light.log existed before the compile started.
+    const preexisting = new Set([theirs]);
+    fs.writeFileSync(mine, "");
+    fs.writeFileSync(alsoMine, "");
+
+    removeCreatedLogs(dir, "e1m1", preexisting);
+
+    assert.equal(fs.existsSync(mine), false);
+    assert.equal(fs.existsSync(alsoMine), false);
+    // Someone else's log is not ours to delete.
+    assert.equal(fs.existsSync(theirs), true);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
 });

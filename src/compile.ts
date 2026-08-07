@@ -136,12 +136,46 @@ function readPointfile(pointfile: string): { point?: [number, number, number]; c
   }
 }
 
+/**
+ * The tools drop a log beside the map: qbsp names its own after the map, vis and
+ * light write a fixed "vis.log" and "light.log". Everything in them is already
+ * parsed out of the output, so they are litter.
+ */
+export function logFilePaths(dir: string, base: string): string[] {
+  return [
+    path.join(dir, `${base}.log`),
+    path.join(dir, "vis.log"),
+    path.join(dir, "light.log"),
+  ];
+}
+
+/**
+ * Removes the logs this compile created. A log that was already there before it
+ * ran belongs to somebody else and is left alone.
+ */
+export function removeCreatedLogs(
+  dir: string,
+  base: string,
+  preexisting: ReadonlySet<string>
+): void {
+  for (const log of logFilePaths(dir, base)) {
+    if (preexisting.has(log)) continue;
+    try {
+      fs.unlinkSync(log);
+    } catch {
+      // Never written, or held open by something; either way not worth failing over.
+    }
+  }
+}
+
 export interface CompileOptions {
   mapPath: string;
   stages?: ToolName[];
   toolsDir?: string;
   extraArgs?: Partial<Record<ToolName, string[]>>;
   timeoutSeconds?: number;
+  /** Leave the log files the tools write beside the map. Off by default. */
+  keepLogs?: boolean;
 }
 
 export function compileMap({
@@ -150,6 +184,7 @@ export function compileMap({
   toolsDir,
   extraArgs = {},
   timeoutSeconds = 600,
+  keepLogs = false,
 }: CompileOptions): CompileResult {
   if (!fs.existsSync(mapPath)) throw new Error(`no such map file: ${mapPath}`);
 
@@ -158,6 +193,10 @@ export function compileMap({
   const bspPath = path.join(dir, `${base}.bsp`);
   const results: CompileStage[] = [];
   let leak: Leak | undefined;
+
+  // Only logs that this compile creates are removed afterwards; one that was
+  // already sitting there belongs to somebody else.
+  const preexistingLogs = new Set(logFilePaths(dir, base).filter((p) => fs.existsSync(p)));
 
   for (const tool of stages) {
     // qbsp takes the map, the others work on the bsp it produced.
@@ -215,6 +254,10 @@ export function compileMap({
 
     // A tool that failed outright makes the later stages meaningless.
     if ((proc.status ?? -1) !== 0) break;
+  }
+
+  if (!keepLogs) {
+    removeCreatedLogs(dir, base, preexistingLogs);
   }
 
   // A leak is reported as a warning and still exits 0, but it means the level is

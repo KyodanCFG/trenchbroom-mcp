@@ -156,6 +156,12 @@ to a model:
   -> qbsp ok, 6 warning(s), 0.01s | LEAK at 0 0 64
 ```
 
+The tools drop a `.log` beside the map — qbsp names its after the map, vis and
+light write a fixed `vis.log` and `light.log`. Everything in them has already
+been parsed out of the output, so they are removed afterwards; pass
+`keep_logs` to leave them. A log that was already there before the compile ran
+is left alone.
+
 ## Workflow notes
 
 - Save in TrenchBroom before asking for edits — the server reads whatever is

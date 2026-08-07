@@ -16,7 +16,7 @@ import { atomicWrite, ensureTbMcpDir, listBackups, restoreLatest, snapshot } fro
 import { parseFgd, resolveClass } from "./fgd/parser.js";
 import { compileMap } from "./compile.js";
 
-const server = new McpServer({ name: "trenchbroom-mcp", version: "0.2.0" });
+const server = new McpServer({ name: "trenchbroom-mcp", version: "0.2.1" });
 
 // ---------- helpers ----------
 
@@ -343,14 +343,19 @@ tool(
     vis_args: z.array(z.string()).optional().describe("Extra vis arguments"),
     light_args: z.array(z.string()).optional().describe('Extra light arguments, e.g. ["-extra4"]'),
     timeout_seconds: z.number().optional().describe("Per-tool timeout. Default 600."),
+    keep_logs: z
+      .boolean()
+      .optional()
+      .describe("Leave the .log files the tools write beside the map. Off by default."),
   },
-  ({ map_path, stages, tools_dir, qbsp_args, vis_args, light_args, timeout_seconds }) =>
+  ({ map_path, stages, tools_dir, qbsp_args, vis_args, light_args, timeout_seconds, keep_logs }) =>
     compileMap({
       mapPath: map_path,
       stages,
       toolsDir: tools_dir,
       extraArgs: { qbsp: qbsp_args, vis: vis_args, light: light_args },
       timeoutSeconds: timeout_seconds,
+      keepLogs: keep_logs,
     })
 );
 
