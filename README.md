@@ -2,8 +2,13 @@
 
 MCP server for editing Quake-format `.map` files — the format TrenchBroom
 reads and writes. TrenchBroom has no scripting API, so this server treats the
-map file itself as the API: an AI client edits the file, you reload in
-TrenchBroom.
+map file itself as the API: an AI client edits the file, and TrenchBroom picks
+the change up.
+
+With the [patched TrenchBroom](#live-editing) the change appears in the editor
+as it happens, keeping your camera, selection and undo history — and it can be
+undone like any other edit. Without it, everything still works; you press
+reload.
 
 ## What it can do
 
@@ -24,11 +29,12 @@ what actually changed.
 
 ## Setup
 
-You need [Node.js](https://nodejs.org/) 20 or newer (`node --version` to
-check) and an MCP client — these instructions are for Claude Code.
+### Build
 
-Clone and build. The build step is not optional: the server runs from
-`dist/`, which is not checked in.
+You need [Node.js](https://nodejs.org/) 20 or newer (`node --version` to
+check). The build step is not optional: the server runs from `dist/`, which is
+not checked in, so a fresh clone that skips it registers a server that cannot
+start.
 
 ```
 git clone <repo-url> trenchbroom-mcp
@@ -37,30 +43,75 @@ npm install
 npm run build
 ```
 
-Register it. Use the **absolute path** to `dist/index.js` in the directory you
-just cloned into — `claude mcp add` does not resolve relative paths from your
-current directory later on.
+Note the absolute path to `dist/index.js` — every client below needs it. On
+Windows it looks like `C:\Users\you\src\trenchbroom-mcp\dist\index.js`.
+
+This is a plain [MCP](https://modelcontextprotocol.io/) server speaking JSON-RPC
+over stdio, with nothing vendor-specific in it, so any MCP client can drive
+it — including local models. Three setups follow; they all say the same thing
+in different files.
+
+> **Whatever the client, restart it after `npm run build`.** MCP servers are
+> started when the client starts, so until you do you are running the old code.
+> This is the single most common thing to trip over.
+
+### Claude Code
 
 ```
 claude mcp add --scope user trenchbroom -- node /absolute/path/to/trenchbroom-mcp/dist/index.js
 ```
 
-On Windows that path looks like `C:\Users\you\src\trenchbroom-mcp\dist\index.js`.
-`--scope user` makes the server available in every project rather than only
-the one you happen to be in.
+`--scope user` makes it available in every project rather than only the one you
+are in. Relative paths are stored verbatim and break as soon as you work
+elsewhere, so use an absolute one. Check it with `claude mcp list`; you want
+`trenchbroom: ... - ✔ Connected`.
 
-Confirm it connected:
+### Claude Desktop
 
+Edit `claude_desktop_config.json` — on Windows
+`%APPDATA%\Claude\`, on macOS `~/Library/Application Support/Claude/` — and add
+an entry under `mcpServers`:
+
+```json
+{
+  "mcpServers": {
+    "trenchbroom": {
+      "command": "node",
+      "args": ["C:/Users/you/src/trenchbroom-mcp/dist/index.js"]
+    }
+  }
+}
 ```
-claude mcp list
-```
 
-You should see `trenchbroom: ... - ✔ Connected`. MCP servers are started when
-a session starts, so **restart Claude Code** before the tools appear — and
-again after any `npm run build`, or you will keep running the old code.
+Forward slashes work on Windows and avoid escaping every backslash. If the file
+already has other servers, add this alongside them rather than replacing them.
 
-Then just point it at a map by absolute path: *"give me an overview of
-C:\quake\mymod\maps\e1m1.map"*.
+### A local model
+
+Any client that supports MCP and lets you point at a local backend works —
+[LM Studio](https://lmstudio.ai/), [Goose](https://block.github.io/goose/),
+[Cline](https://cline.bot/) or [Continue](https://continue.dev/) in VS Code, or
+[LibreChat](https://www.librechat.ai/), among others. They differ in where the
+config file lives, but the entry is the same `command` plus `args` shape as
+above, because that is the MCP standard rather than anything Claude-specific.
+
+The plumbing is the easy part; the model is not. These tools need real
+multi-step tool use: read the map, reason about coordinates in 3D, emit exact
+numeric arguments, then check the result. A model that is weak at tool calling
+will pick the right tool with wrong numbers, which is worse than failing,
+because the map still changes. In practice a 30B-class coding model is about
+the floor.
+
+Start a new model on the read-only tools — `map_overview`, `list_entities`,
+`get_entity`, `fgd_class`, `render_preview` — and see how it does before letting
+it write. The snapshots and `undo_last_edit` are there either way.
+
+## Using it
+
+Point the client at a map by absolute path: *"give me an overview of
+C:\quake\mymod\maps\e1m1.map"*. From there, things like *"dim every light by
+30%"*, *"list any entity nothing targets"*, or *"add a 512 unit room at the
+origin with 16 unit walls"*.
 
 ## Live editing
 
