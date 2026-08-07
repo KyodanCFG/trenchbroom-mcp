@@ -43,9 +43,39 @@ export function restoreLatest(mapPath: string): string | null {
   return latest;
 }
 
-/** Write atomically: temp file in the same directory, then rename over. */
+/**
+ * Write atomically: temp file in the same directory, then rename over.
+ *
+ * On Windows the rename fails with EPERM or EBUSY while something else holds the file
+ * open, which happens routinely and briefly: a virus scanner reading a file that was
+ * just written, the search indexer, or the editor picking up the previous change. Those
+ * locks clear on their own, so the rename is retried before giving up. The temp file is
+ * cleaned up on failure so a later write does not trip over it.
+ */
 export function atomicWrite(filePath: string, content: string): void {
   const tmp = filePath + ".tb-mcp-tmp";
   fs.writeFileSync(tmp, content);
-  fs.renameSync(tmp, filePath);
+
+  const deadline = Date.now() + 2000;
+  for (;;) {
+    try {
+      fs.renameSync(tmp, filePath);
+      return;
+    } catch (err) {
+      const code = (err as NodeJS.ErrnoException).code;
+      if ((code !== "EPERM" && code !== "EBUSY" && code !== "EACCES") || Date.now() >= deadline) {
+        try {
+          fs.unlinkSync(tmp);
+        } catch {
+          // The temp file is already gone, or locked too; nothing useful to do.
+        }
+        throw err;
+      }
+      // Busy-wait briefly: these locks are held for milliseconds.
+      const until = Date.now() + 25;
+      while (Date.now() < until) {
+        /* spin */
+      }
+    }
+  }
 }
