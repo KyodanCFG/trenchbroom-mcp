@@ -11,6 +11,7 @@ import { brushVertices, brushBounds, mapBounds } from "../dist/map/geometry.js";
 import { makeBoxBrush, translateEntity, usesValveFormat } from "../dist/map/builder.js";
 import { renderView } from "../dist/render/svg.js";
 import { parseFgd, resolveClass } from "../dist/fgd/parser.js";
+import { parseCompileOutput } from "../dist/compile.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const fixture = fs.readFileSync(path.join(here, "fixtures", "example.map"), "utf8");
@@ -171,4 +172,44 @@ test("parser: a map without a header round trips unchanged", () => {
   const map = parseMap(src);
   assert.deepEqual(map.header, []);
   assert.equal(serializeMap(map), src);
+});
+
+test("compile: progress counters and warnings are parsed out of tool output", () => {
+  // Real qbsp output: hundreds of percent counters, sometimes with the next
+  // heading stuck on the end of the line, and warnings repeated per object.
+  const output = [
+    "---- LoadMapFile ----",
+    "  1%  2%  3% 99%100%---- GrowRegions ----",
+    "*** WARNING 06: No info_player_deathmatch entities in level",
+    "*** WARNING 16: Texture foo not found",
+    "*** WARNING 16: Texture foo not found",
+    "Wrote test.bsp",
+  ].join("\r\n");
+
+  const { warnings, errors, leakPoint } = parseCompileOutput(output);
+  assert.equal(errors.length, 0);
+  assert.equal(leakPoint, undefined);
+  // Repeated warnings are grouped rather than listed one by one.
+  const texture = warnings.find((w) => w.message.includes("Texture foo"));
+  assert.equal(texture.count, 2);
+  assert.equal(texture.code, "16");
+});
+
+test("compile: a leak is found even though the compiler exits successfully", () => {
+  const output = [
+    "*** WARNING 10: Reached occupant at (0 -128 64), no filling performed.",
+    "Leak file written to leaky.pts",
+  ].join("\n");
+
+  const { leakPoint } = parseCompileOutput(output);
+  assert.deepEqual(leakPoint, [0, -128, 64]);
+});
+
+test("compile: an error banner is read as the line that follows it", () => {
+  const output = ["---- LoadMapFile ----", "************ ERROR ************", "line 6: Invalid brush plane format"].join(
+    "\n"
+  );
+
+  const { errors } = parseCompileOutput(output);
+  assert.deepEqual(errors, ["line 6: Invalid brush plane format"]);
 });

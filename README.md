@@ -22,6 +22,9 @@ reload.
   reason about layout instead of editing blind.
 - **Know the game**: `fgd_classes` / `fgd_class` parse an FGD entity
   definition file, with base-class inheritance resolved.
+- **Compile**: `compile_map` runs [ericw-tools](https://ericwa.github.io/ericw-tools/)
+  and reports what the compiler said — errors, grouped warnings, and leaks,
+  with the coordinate the leak escaped from.
 
 Supports Valve 220 and standard (idTech) face formats, plus Quake 2 surface
 flags. Unmodified lines are written back byte-for-byte, so diffs only touch
@@ -127,6 +130,32 @@ branch of the TrenchBroom fork.
 
 Without the patch everything still works; you just press reload.
 
+## Compiling
+
+`compile_map` runs [ericw-tools](https://ericwa.github.io/ericw-tools/) and
+returns what the compiler said, rather than a wall of text. Point it at the
+tools with `tools_dir`, or set `ERICW_TOOLS_DIR`, or put them on `PATH`.
+
+It runs `qbsp` by default, which is the fast structural check; pass
+`stages: ["qbsp", "vis", "light"]` for a full build.
+
+Two things it takes care of, both of which otherwise make the output useless
+to a model:
+
+- The tools print hundreds of percent counters, often several to a line with
+  real output stuck on the end. Those are stripped, and repeated warnings are
+  grouped with a count instead of listed one by one.
+- **A leak is reported as a warning and the compiler still exits 0.** So exit
+  status is not a useful signal, and `compile_map` reports `success: false`
+  for a leak, along with the coordinate the compiler escaped from and the
+  pointfile. That coordinate names an entity inside your level that can see
+  the void, which is the thing you actually need to know.
+
+```
+"compile the map and tell me if it leaks"
+  -> qbsp ok, 6 warning(s), 0.01s | LEAK at 0 0 64
+```
+
 ## Workflow notes
 
 - Save in TrenchBroom before asking for edits — the server reads whatever is
@@ -140,6 +169,80 @@ Without the patch everything still works; you just press reload.
 - The comments at the top of a map file (`// Game: Quake`) are preserved —
   TrenchBroom picks the game and format from them.
 
+## What this is actually for
+
+Separately, each half is modest. This server is a `.map` file editor; the
+patch is a file watcher. Together they remove the thing that made AI level
+editing useless: **the round trip.** You don't export, or reload, or context
+switch. You say something, and the map changes in front of you, in the editor
+you were already using, with your camera where you left it and your selection
+intact. And because the change arrives as an ordinary undoable edit,
+<kbd>Ctrl</kbd>+<kbd>Z</kbd> is the escape hatch — which is what makes it safe
+to actually try things rather than carefully vetting each one.
+
+The subtler shift: the model can *see* the map. Between `map_overview`,
+`list_entities` and the SVG previews, it reasons about your actual level — its
+bounds, its entity graph, its layout — instead of generating plausible-looking
+map text blind. That's the difference between a code generator and a
+collaborator.
+
+### Typical use
+
+The honest bread-and-butter is **tedium at scale**. Dim every light by 30%.
+Retarget `door1` to `bridge_door` everywhere. Delete every monster for a
+no-combat build. Bump all health pickups up 8 units because they're clipping
+the floor. These are minutes of clicking, or a script you'd have to write, and
+now they're a sentence.
+
+Second is **interrogation**. "Which entities does nothing target?" "What
+textures does this actually use?" (trim the WAD) "Is anything outside the
+world bounds?" TrenchBroom has an Issues panel, but it can't answer arbitrary
+questions about *your* map's logic.
+
+Third is **blockout**. Rooms, corridors, stairs, pillar rows, lights at
+intervals. Axis-aligned boxes are exactly what greyboxing is, so the current
+limitation bites much less here than it would for detail work.
+
+Fourth, and underrated: **learning a game's entity vocabulary.** The FGD tools
+mean the model can tell you what `func_door` actually supports in *your* game —
+including a custom FGD for a mod — rather than half-remembering Quake trivia.
+
+### Where it gets genuinely interesting
+
+**Parametric level design.** Not "generate me a level," but "make the courtyard
+25% bigger and move everything that was against the north wall." Iterating on
+layout at the speed of conversation, with the editor as live preview. The map
+stops being a static artifact and becomes something you can nudge.
+
+**Closing the compile loop.** `compile_map` makes the compiler part of the
+conversation rather than a separate ritual. Leaks are the case that matters:
+the compiler reports one as a warning, exits successfully, and quietly
+produces a broken build — so the tool treats a leak as failure and hands back
+the coordinate it escaped from. "You leaked at 0 0 64" is a fixable sentence,
+and fix, recompile, verify is a loop a machine is good at running. Quake
+mapping's most painful chore becomes a dialogue.
+
+**Whole-map refactors that nobody attempts by hand.** Convert every `func_wall`
+to `func_detail`. Renumber a broken trigger chain. Port entity names from Quake
+to a mod's conventions. These are "I'd rather rebuild the level" jobs today.
+
+**Your own games.** TrenchBroom's generic game config plus custom FGDs means
+this stack points at anything brush-based, not just Quake.
+
+**Two people, one map.** Nothing about the design assumes the other editor is
+an AI. It's "another program changed the file." Two mappers with a shared file,
+or a generator running continuously while you hand-detail, both work.
+
+### The honest ceiling
+
+It can't do rotated or non-box geometry, so it greyboxes rather than finishes.
+It has no aesthetic judgement — it'll place lights at perfect intervals, which
+is exactly what a good mapper wouldn't do. And it can't play the level, so
+nothing it makes has been evaluated for whether it's *fun*.
+
+The right mental model is a fast, tireless assistant who knows the file format
+cold and has no taste. You bring the taste.
+
 ## Testing
 
 ```
@@ -152,11 +255,12 @@ npm test
   rotation, so this builds blockouts rather than finished geometry.
 - No texture alignment control beyond what is preserved on untouched faces.
 - Editing a map by hand while the server is also editing it is not supported.
+- Compiling needs ericw-tools installed separately; it is not bundled.
 
 ## Roadmap
 
 - More brush primitives (wedge, cylinder), rotation, texture retargeting.
-- Compile-tool integration (ericw-tools) so a map can be built and run without
-  leaving the conversation.
+- Launching the compiled map in an engine, so the loop reaches "go and look at
+  it" without leaving the conversation.
 - Upstreaming the editor patch — TrenchBroom issue #3505 asked for external
   reload in 2020.

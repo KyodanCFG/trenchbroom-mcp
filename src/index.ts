@@ -14,8 +14,9 @@ import { makeBoxBrush, translateEntity, usesValveFormat } from "./map/builder.js
 import { renderView, type ViewName } from "./render/svg.js";
 import { atomicWrite, ensureTbMcpDir, listBackups, restoreLatest, snapshot } from "./backup.js";
 import { parseFgd, resolveClass } from "./fgd/parser.js";
+import { compileMap } from "./compile.js";
 
-const server = new McpServer({ name: "trenchbroom-mcp", version: "0.1.0" });
+const server = new McpServer({ name: "trenchbroom-mcp", version: "0.2.0" });
 
 // ---------- helpers ----------
 
@@ -318,6 +319,39 @@ tool(
       pointEntitiesDrawn: result.pointEntityCount,
     };
   }
+);
+
+// ---------- Compile ----------
+
+tool(
+  "compile_map",
+  "Compile a .map with ericw-tools and report what the compiler said. Runs qbsp by " +
+    "default; pass stages for a full build. Detects leaks, which the compiler reports " +
+    "as a warning and still exits successfully, and returns the coordinate the leak " +
+    "escaped from.",
+  {
+    map_path: z.string().describe("Absolute path to the .map file"),
+    stages: z
+      .array(z.enum(["qbsp", "vis", "light"]))
+      .optional()
+      .describe('Which tools to run, in order. Default ["qbsp"]. vis is slow.'),
+    tools_dir: z
+      .string()
+      .optional()
+      .describe("Directory holding qbsp/vis/light. Defaults to $ERICW_TOOLS_DIR, then PATH."),
+    qbsp_args: z.array(z.string()).optional().describe('Extra qbsp arguments, e.g. ["-nopercent"]'),
+    vis_args: z.array(z.string()).optional().describe("Extra vis arguments"),
+    light_args: z.array(z.string()).optional().describe('Extra light arguments, e.g. ["-extra4"]'),
+    timeout_seconds: z.number().optional().describe("Per-tool timeout. Default 600."),
+  },
+  ({ map_path, stages, tools_dir, qbsp_args, vis_args, light_args, timeout_seconds }) =>
+    compileMap({
+      mapPath: map_path,
+      stages,
+      toolsDir: tools_dir,
+      extraArgs: { qbsp: qbsp_args, vis: vis_args, light: light_args },
+      timeoutSeconds: timeout_seconds,
+    })
 );
 
 // ---------- FGD ----------
