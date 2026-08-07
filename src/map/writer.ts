@@ -31,7 +31,7 @@ export function formatFace(f: Face): string {
  * fixpoint and diffs only touch what actually changed.
  */
 export function serializeMap(map: MapFile): string {
-  const lines: string[] = [];
+  const lines: string[] = [...map.header];
   map.entities.forEach((e, ei) => {
     lines.push(`// entity ${ei}`, "{");
     for (const p of e.properties) {

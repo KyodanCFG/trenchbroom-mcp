@@ -146,3 +146,29 @@ test("fgd: classes, properties, choices, spawnflags, inheritance", () => {
   assert.equal(angle.defaultValue, "0");
   assert.equal(angle.description, "-1 = up, -2 = down");
 });
+
+test("parser: the game and format header survives a round trip", () => {
+  const src = [
+    "// Game: Quake",
+    "// Format: Standard",
+    "// entity 0",
+    "{",
+    '"classname" "worldspawn"',
+    "}",
+    "",
+  ].join("\r\n");
+
+  const map = parseMap(src);
+  assert.deepEqual(map.header, ["// Game: Quake", "// Format: Standard"]);
+
+  // TrenchBroom picks the game from these lines when opening the map, so losing them
+  // makes the map open with a game prompt instead.
+  assert.equal(serializeMap(map), src);
+});
+
+test("parser: a map without a header round trips unchanged", () => {
+  const src = ["// entity 0", "{", '"classname" "worldspawn"', "}", ""].join("\n");
+  const map = parseMap(src);
+  assert.deepEqual(map.header, []);
+  assert.equal(serializeMap(map), src);
+});

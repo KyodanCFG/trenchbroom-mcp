@@ -39,6 +39,12 @@ export interface Entity {
 }
 
 export interface MapFile {
+  /**
+   * Comment lines before the first entity, verbatim. TrenchBroom writes the game and
+   * the map format here ("// Game: Quake"), and uses them to pick the game when the map
+   * is opened, so dropping them makes the map open with a game prompt instead.
+   */
+  header: string[];
   entities: Entity[];
   eol: "\n" | "\r\n";
 }

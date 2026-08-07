@@ -66,6 +66,7 @@ export function parseMap(text: string): MapFile {
   const eol: MapFile["eol"] = text.includes("\r\n") ? "\r\n" : "\n";
   const lines = text.split(/\r?\n/);
   const entities: Entity[] = [];
+  const header: string[] = [];
   let entity: Entity | null = null;
   let brush: Brush | null = null;
 
@@ -73,7 +74,14 @@ export function parseMap(text: string): MapFile {
     const line = lines[i];
     const trimmed = line.trim();
     const lineNo = i + 1;
-    if (trimmed === "" || trimmed.startsWith("//")) continue;
+    if (trimmed === "" || trimmed.startsWith("//")) {
+      // The comments before the first entity carry the game and the map format, so they
+      // are kept. The "// entity N" and "// brush N" ones are regenerated on write.
+      if (entities.length === 0 && !entity && trimmed.startsWith("//") && !/^\/\/\s*(entity|brush)\s+\d+/.test(trimmed)) {
+        header.push(line);
+      }
+      continue;
+    }
 
     if (trimmed === "{") {
       if (!entity) {
@@ -107,5 +115,5 @@ export function parseMap(text: string): MapFile {
   }
   if (entity || brush) throw new Error("unexpected end of file: unclosed block");
 
-  return { entities, eol };
+  return { header, entities, eol };
 }
