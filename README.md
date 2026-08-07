@@ -25,6 +25,9 @@ reload.
 - **Compile**: `compile_map` runs [ericw-tools](https://ericwa.github.io/ericw-tools/)
   and reports what the compiler said — errors, grouped warnings, and leaks,
   with the coordinate the leak escaped from.
+- **Play**: `launch_map` installs the compiled `.bsp` into the game's maps
+  directory and starts an engine on it, reporting what the engine said if it
+  refused.
 
 Supports Valve 220 and standard (idTech) face formats, plus Quake 2 surface
 flags. Unmodified lines are written back byte-for-byte, so diffs only touch
@@ -156,6 +159,25 @@ to a model:
   -> qbsp ok, 6 warning(s), 0.01s | LEAK at 0 0 64
 ```
 
+## Playing
+
+`launch_map` copies the compiled `.bsp` — and its `.lit`, if there is one —
+into `<game_dir>/<mod>/maps/`, then starts the engine on that map with
+`-basedir`, `-game` and `+map`, which QuakeSpasm, vkQuake and ironwail all
+understand. Anything engine-specific goes in `extra_args`.
+
+The engine is started detached, so it outlives the request and you can go and
+play. Its output is written to a file rather than a pipe, because a pipe dies
+with the server and takes the engine with it. If the engine gives up during
+the first few seconds — a missing `pak0.pak`, a map it cannot find — that is
+reported back with whatever it said, taken from its output and from
+`qconsole.log`, which `-condebug` asks it to write.
+
+```
+"compile it and run it"
+  -> qbsp ok, vis ok, light ok | launched e1m1 (pid 15588)
+```
+
 The tools drop a `.log` beside the map — qbsp names its after the map, vis and
 light write a fixed `vis.log` and `light.log`. Everything in them has already
 been parsed out of the output, so they are removed afterwards; pass
@@ -220,13 +242,15 @@ including a custom FGD for a mod — rather than half-remembering Quake trivia.
 layout at the speed of conversation, with the editor as live preview. The map
 stops being a static artifact and becomes something you can nudge.
 
-**Closing the compile loop.** `compile_map` makes the compiler part of the
+**Closing the compile loop.** `compile_map` and `launch_map` make the compiler
+part of the
 conversation rather than a separate ritual. Leaks are the case that matters:
 the compiler reports one as a warning, exits successfully, and quietly
 produces a broken build — so the tool treats a leak as failure and hands back
 the coordinate it escaped from. "You leaked at 0 0 64" is a fixable sentence,
 and fix, recompile, verify is a loop a machine is good at running. Quake
-mapping's most painful chore becomes a dialogue.
+mapping's most painful chore becomes a dialogue, and "compile it and run it"
+ends with the map open in front of you.
 
 **Whole-map refactors that nobody attempts by hand.** Convert every `func_wall`
 to `func_detail`. Renumber a broken trigger chain. Port entity names from Quake
@@ -261,12 +285,13 @@ npm test
   rotation, so this builds blockouts rather than finished geometry.
 - No texture alignment control beyond what is preserved on untouched faces.
 - Editing a map by hand while the server is also editing it is not supported.
-- Compiling needs ericw-tools installed separately; it is not bundled.
+- Compiling needs ericw-tools installed separately; it is not bundled, and
+  launching needs an engine and the game data it expects.
+- Launching has only been proven against a stand-in engine, not a real Quake
+  engine on a real install.
 
 ## Roadmap
 
 - More brush primitives (wedge, cylinder), rotation, texture retargeting.
-- Launching the compiled map in an engine, so the loop reaches "go and look at
-  it" without leaving the conversation.
 - Upstreaming the editor patch — TrenchBroom issue #3505 asked for external
   reload in 2020.

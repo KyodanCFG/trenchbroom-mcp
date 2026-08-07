@@ -13,6 +13,7 @@ import { makeBoxBrush, translateEntity, usesValveFormat } from "../dist/map/buil
 import { renderView } from "../dist/render/svg.js";
 import { parseFgd, resolveClass } from "../dist/fgd/parser.js";
 import { parseCompileOutput, removeCreatedLogs } from "../dist/compile.js";
+import { launchMap, buildEngineArgs, interestingLines } from "../dist/launch.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const fixture = fs.readFileSync(path.join(here, "fixtures", "example.map"), "utf8");
@@ -234,6 +235,80 @@ test("compile: only the logs a compile created are cleaned up", () => {
     assert.equal(fs.existsSync(alsoMine), false);
     // Someone else's log is not ours to delete.
     assert.equal(fs.existsSync(theirs), true);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("launch: engine arguments are the ones every Quake engine agrees on", () => {
+  assert.deepEqual(
+    buildEngineArgs({ baseDir: "C:/Quake", mapName: "e1m1", condebug: false }),
+    ["-basedir", "C:/Quake", "+map", "e1m1"]
+  );
+
+  // A mod becomes -game, and extra arguments stay ahead of +map so the map is
+  // always the last thing said to the engine.
+  assert.deepEqual(
+    buildEngineArgs({
+      baseDir: "C:/Quake",
+      mapName: "ad_tears",
+      mod: "ad",
+      extraArgs: ["-heapsize", "256000"],
+    }),
+    ["-basedir", "C:/Quake", "-game", "ad", "-condebug", "-heapsize", "256000", "+map", "ad_tears"]
+  );
+});
+
+test("launch: only the lines that explain a failure are surfaced", () => {
+  const log = [
+    "Quake 1.09 (c) id Software",
+    "Playing registered version.",
+    "ERROR: couldn't load maps/e1m1.bsp",
+    "",
+    "Console initialized.",
+  ].join("\n");
+
+  assert.deepEqual(interestingLines(log), ["ERROR: couldn't load maps/e1m1.bsp"]);
+});
+
+test("launch: refuses a map that was never compiled", async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tb-mcp-launch-"));
+  try {
+    const mapPath = path.join(dir, "e1m1.map");
+    fs.writeFileSync(mapPath, "");
+
+    await assert.rejects(
+      () => launchMap({ bspPath: mapPath, enginePath: "C:/Windows/System32/where.exe" }),
+      // A .map is handed over, and the message has to say why that is not enough.
+      /no compiled map|compile it first/i
+    );
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("launch: the bsp and its coloured lighting are installed into the maps directory", async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tb-mcp-launch-"));
+  try {
+    fs.writeFileSync(path.join(dir, "e1m1.bsp"), "not really a bsp");
+    fs.writeFileSync(path.join(dir, "e1m1.lit"), "not really a lit");
+    const gameDir = path.join(dir, "game");
+
+    // where.exe rejects these arguments and exits at once, standing in for an
+    // engine that refuses to start.
+    const result = await launchMap({
+      bspPath: path.join(dir, "e1m1.bsp"),
+      enginePath: "C:/Windows/System32/where.exe",
+      gameDir,
+      mod: "ad",
+      graceMs: 5000,
+    });
+
+    assert.equal(result.launched, false);
+    assert.equal(result.mapName, "e1m1");
+    assert.equal(fs.existsSync(path.join(gameDir, "ad", "maps", "e1m1.bsp")), true);
+    // Coloured lighting is useless if it gets left behind.
+    assert.equal(fs.existsSync(path.join(gameDir, "ad", "maps", "e1m1.lit")), true);
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }

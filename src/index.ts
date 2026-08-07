@@ -15,8 +15,9 @@ import { renderView, type ViewName } from "./render/svg.js";
 import { atomicWrite, ensureTbMcpDir, listBackups, restoreLatest, snapshot } from "./backup.js";
 import { parseFgd, resolveClass } from "./fgd/parser.js";
 import { compileMap } from "./compile.js";
+import { launchMap } from "./launch.js";
 
-const server = new McpServer({ name: "trenchbroom-mcp", version: "0.2.1" });
+const server = new McpServer({ name: "trenchbroom-mcp", version: "0.3.0" });
 
 // ---------- helpers ----------
 
@@ -356,6 +357,52 @@ tool(
       extraArgs: { qbsp: qbsp_args, vis: vis_args, light: light_args },
       timeoutSeconds: timeout_seconds,
       keepLogs: keep_logs,
+    })
+);
+
+tool(
+  "launch_map",
+  "Launch a compiled map in a Quake engine. Copies the .bsp into the game's maps " +
+    "directory, starts the engine on that map, and reports anything the engine said " +
+    "if it refused to start. Compile the map first: the engine loads the .bsp, not " +
+    "the .map.",
+  {
+    bsp_path: z
+      .string()
+      .describe("Absolute path to the compiled .bsp (a .map path is accepted and swapped)"),
+    engine_path: z.string().describe("Absolute path to the engine, e.g. quakespasm.exe"),
+    game_dir: z
+      .string()
+      .optional()
+      .describe("Directory containing id1. Defaults to the engine's own directory."),
+    mod: z.string().optional().describe('Mod directory, e.g. "ad" or "copper". Defaults to id1.'),
+    extra_args: z.array(z.string()).optional().describe('Extra engine arguments, e.g. ["-fitz"]'),
+    install_bsp: z
+      .boolean()
+      .optional()
+      .describe("Copy the .bsp into the maps directory first. On by default."),
+    condebug: z
+      .boolean()
+      .optional()
+      .describe(
+        "Ask the engine to write qconsole.log so failures are visible. On by default; " +
+          "writes that file into the game directory."
+      ),
+    grace_seconds: z
+      .number()
+      .optional()
+      .describe("How long to watch for the engine dying before calling it launched. Default 3."),
+  },
+  ({ bsp_path, engine_path, game_dir, mod, extra_args, install_bsp, condebug, grace_seconds }) =>
+    launchMap({
+      bspPath: bsp_path,
+      enginePath: engine_path,
+      gameDir: game_dir,
+      mod,
+      extraArgs: extra_args,
+      installBsp: install_bsp,
+      condebug,
+      graceMs: grace_seconds === undefined ? undefined : grace_seconds * 1000,
     })
 );
 
