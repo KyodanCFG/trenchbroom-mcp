@@ -33,15 +33,23 @@ Half-Life map. The local-model client instructions in README (LM Studio, Goose,
 Cline, LibreChat) were written from general knowledge and never followed
 end to end.
 
-**Not started.** Launching a compiled map in an engine. Filing the upstream
-TrenchBroom issue. Brush primitives beyond axis-aligned boxes.
+**`launch_map` is built but unproven against a real engine.** There is no Quake
+engine and no game data on this machine, so it was verified against a stand-in
+engine compiled for the purpose: the `.bsp` and `.lit` are installed into
+`<game_dir>/<mod>/maps/`, the engine survives the tool call returning, and its
+output is captured. Whether a real engine accepts the arguments, and whether
+three seconds is long enough to notice one giving up, are both untested.
+
+**Not started.** Filing the upstream TrenchBroom issue. Brush primitives beyond
+axis-aligned boxes.
 
 ## Next steps (in order)
 
-1. **Build a launch tool** so the loop reaches "go and look at it". Spawn an
-   engine with `+map <name>`; the open questions are where the `.bsp` must be
-   copied to and whether to surface the engine's console output. The owner
-   planned to test map launching on 2026-08-07.
+1. **Run `launch_map` against a real engine.** Everything else in this project
+   has been proven on real data; this has not. QuakeSpasm, vkQuake or ironwail
+   plus a Quake install is all it needs. Watch for two things: whether the
+   engine accepts `-basedir` / `-game` / `+map` as given, and whether a refusal
+   is caught inside the three second grace period.
 2. **File the upstream TrenchBroom issue.** Text is drafted and ready at
    `../trenchbroom/ISSUE-DRAFT.md` (untracked on purpose — delete before
    pushing the branch). TrenchBroom's CONTRIBUTING requires agreement on the
@@ -65,6 +73,10 @@ TrenchBroom issue. Brush primitives beyond axis-aligned boxes.
 
 ## Key files
 
+- `src/launch.ts` — starts an engine on a compiled map. The engine must be
+  spawned detached with its output going to a file; a child left in the
+  server's process group, or one holding pipes the server owns, dies the
+  moment the server moves on.
 - `src/compile.ts` — runs ericw-tools and parses the result. The parsing is not
   optional: percent counters run hundreds to a line with real output on the end,
   and a leak is a warning with exit code 0.
@@ -92,6 +104,7 @@ TrenchBroom issue. Brush primitives beyond axis-aligned boxes.
   fails unless the VS Installer directory is on `PATH` first.
 - MCP servers start when the client starts. **Restart the client after every
   `npm run build`**, or it keeps running the old code.
-- The test map's `wad` key points at `D:/QuakeDev/...` on the original author's
-  machine, so recompiling it produces an untextured build. The `.bsp` in that
-  folder is the author's original and should be left alone.
+- The test map lives at `Downloads/Shogo/tb_tutch_01/maps/tb_tutch_01.map`. Its
+  `wad` key points at `D:/QuakeDev/...` on the original author's machine, so
+  recompiling it produces an untextured build. The `.bsp` beside it is the
+  author's original and should be left alone.
