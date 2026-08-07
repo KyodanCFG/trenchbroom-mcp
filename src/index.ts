@@ -12,7 +12,7 @@ import { serializeMap } from "./map/writer.js";
 import { entityBounds, mapBounds } from "./map/geometry.js";
 import { makeBoxBrush, translateEntity, usesValveFormat } from "./map/builder.js";
 import { renderView, type ViewName } from "./render/svg.js";
-import { atomicWrite, listBackups, restoreLatest, snapshot } from "./backup.js";
+import { atomicWrite, ensureTbMcpDir, listBackups, restoreLatest, snapshot } from "./backup.js";
 import { parseFgd, resolveClass } from "./fgd/parser.js";
 
 const server = new McpServer({ name: "trenchbroom-mcp", version: "0.1.0" });
@@ -308,7 +308,7 @@ tool(
     const v: ViewName = view ?? "top";
     const result = renderView(map, v);
     const dest =
-      out_path ?? path.join(path.dirname(map_path), ".tb-mcp", `preview-${v}.svg`);
+      out_path ?? path.join(ensureTbMcpDir(map_path), `preview-${v}.svg`);
     fs.mkdirSync(path.dirname(dest), { recursive: true });
     fs.writeFileSync(dest, result.svg);
     return {

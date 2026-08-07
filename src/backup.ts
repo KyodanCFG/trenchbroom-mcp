@@ -18,10 +18,26 @@ export function listBackups(mapPath: string): string[] {
     .map((f) => path.join(dir, f));
 }
 
+/**
+ * Creates a directory inside .tb-mcp next to the map. That is usually inside the user's
+ * own repository, so the directory is made to ignore itself rather than turning up in
+ * their next commit.
+ */
+export function ensureTbMcpDir(mapPath: string, ...segments: string[]): string {
+  const root = path.join(path.dirname(mapPath), ".tb-mcp");
+  const dir = path.join(root, ...segments);
+  fs.mkdirSync(dir, { recursive: true });
+
+  const ignore = path.join(root, ".gitignore");
+  if (!fs.existsSync(ignore)) {
+    fs.writeFileSync(ignore, "*\n");
+  }
+  return dir;
+}
+
 /** Copy the map aside before a mutation. Returns the backup path. */
 export function snapshot(mapPath: string): string {
-  const dir = backupDir(mapPath);
-  fs.mkdirSync(dir, { recursive: true });
+  const dir = ensureTbMcpDir(mapPath, "backups");
   const base = path.basename(mapPath, ".map");
   const stamp = new Date().toISOString().replace(/[:.]/g, "-");
   const dest = path.join(dir, `${base}.${stamp}.map`);
