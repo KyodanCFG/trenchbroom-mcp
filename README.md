@@ -52,6 +52,20 @@ npm run build
 Note the absolute path to `dist/index.js` — every client below needs it. On
 Windows it looks like `C:\Users\you\src\trenchbroom-mcp\dist\index.js`.
 
+### Or: a single file, no clone, no build
+
+`npm run bundle` produces `dist/trenchbroom-mcp.mjs` — the whole server and its
+dependencies in one ~760 kb file that runs anywhere Node 20+ is installed, with
+no `node_modules` beside it:
+
+```
+node /path/to/trenchbroom-mcp.mjs
+```
+
+This is the easiest way to move the server to another machine or hand it to
+someone else: copy one file and point the client at it. Everywhere below that
+says `dist/index.js`, you can say `trenchbroom-mcp.mjs` instead.
+
 This is a plain [MCP](https://modelcontextprotocol.io/) server speaking JSON-RPC
 over stdio, with nothing vendor-specific in it, so any MCP client can drive
 it — including local models. Three setups follow; they all say the same thing
