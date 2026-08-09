@@ -17,7 +17,7 @@ import { parseFgd, resolveClass } from "./fgd/parser.js";
 import { compileMap } from "./compile.js";
 import { launchMap } from "./launch.js";
 
-const server = new McpServer({ name: "trenchbroom-mcp", version: "0.3.0" });
+const server = new McpServer({ name: "trenchbroom-mcp", version: "0.3.2" });
 
 // ---------- helpers ----------
 

@@ -313,3 +313,12 @@ test("launch: the bsp and its coloured lighting are installed into the maps dire
     fs.rmSync(dir, { recursive: true, force: true });
   }
 });
+
+// The server announces its own version to clients, and it is a separate literal
+// from package.json -- so it drifts silently unless something checks.
+test("server version matches package.json", async () => {
+  const pkg = JSON.parse(fs.readFileSync(new URL("../package.json", import.meta.url), "utf8"));
+  const src = fs.readFileSync(new URL("../src/index.ts", import.meta.url), "utf8");
+  const declared = /new McpServer\(\{[^}]*version:\s*"([^"]+)"/.exec(src)?.[1];
+  assert.equal(declared, pkg.version);
+});
