@@ -16,8 +16,9 @@ import { atomicWrite, ensureTbMcpDir, listBackups, restoreLatest, snapshot } fro
 import { parseFgd, resolveClass } from "./fgd/parser.js";
 import { compileMap } from "./compile.js";
 import { launchMap } from "./launch.js";
+import { compileShogoMap } from "./shogo.js";
 
-const server = new McpServer({ name: "trenchbroom-mcp", version: "0.3.2" });
+const server = new McpServer({ name: "trenchbroom-mcp", version: "0.4.0" });
 
 // ---------- helpers ----------
 
@@ -357,6 +358,48 @@ tool(
       extraArgs: { qbsp: qbsp_args, vis: vis_args, light: light_args },
       timeoutSeconds: timeout_seconds,
       keepLogs: keep_logs,
+    })
+);
+
+tool(
+  "compile_shogo_map",
+  "Compile a .map for Shogo: Mobile Armor Division and report what the compiler produced. " +
+    "This is a DIFFERENT toolchain from compile_map - Shogo uses the SDK's Processor.exe " +
+    "(.map -> .ed -> .dat), not ericw-tools, and the two are not interchangeable. Drives " +
+    "the Shogo mapping kit, so it inherits the compiler's documented traps rather than " +
+    "repeating them. Reports light map nodes, which is the number that says whether the " +
+    "world is lit or will render black.",
+  {
+    map_path: z.string().describe("Absolute path to the .map file"),
+    kit_dir: z
+      .string()
+      .optional()
+      .describe("The ShogoMapping folder (holds tools/). Defaults to $SHOGO_KIT_DIR."),
+    workspace: z
+      .string()
+      .optional()
+      .describe(
+        "Folder holding shogo-mapping.json, written by the kit's setup.ps1. " +
+          "Defaults to $SHOGO_WORKSPACE."
+      ),
+    lighting: z
+      .boolean()
+      .optional()
+      .describe("Run the lighting stage. On by default; off is faster while blocking out."),
+    install: z
+      .boolean()
+      .optional()
+      .describe("Copy the compiled .dat into the game's Custom folder. On by default."),
+    timeout_seconds: z.number().optional().describe("Per-step timeout. Default 600."),
+  },
+  ({ map_path, kit_dir, workspace, lighting, install, timeout_seconds }) =>
+    compileShogoMap({
+      mapPath: map_path,
+      kitDir: kit_dir,
+      workspace,
+      lighting,
+      install,
+      timeoutSeconds: timeout_seconds,
     })
 );
 
