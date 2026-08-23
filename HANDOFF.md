@@ -1,4 +1,4 @@
-# Handoff — trenchbroom-mcp (+ TrenchBroom-HL fork) — 2026-08-23
+# Handoff — trenchbroom-mcp (+ TrenchBroom-HL fork) — 2026-08-23 (released hl-1.18)
 
 > The MCP side is closed: every fix it was carrying is now proven end to end.
 > The session then moved into the EDITOR, which is where most of the work is —
@@ -38,6 +38,12 @@
   to 554px.
 - **Unchecking a tag hides point entities.** Unchecking `Light` on `OF_Mecca`
   removes the Light entities and leaves `WorldProperties` alone.
+- **Every placeable class carries a tag**, checked by the generator rather than
+  hoped for. 23 tags over 320 classes.
+- **No aim arrow on an entity with no rotation property.** 162 point lights per
+  level had one; the 13 DirLights that genuinely aim looked no different.
+- **Released `hl-1.17` and `hl-1.18`**, both packaged and tagged; the zips are
+  in `~/Downloads`.
 
 ## Findings worth keeping
 
@@ -78,7 +84,21 @@ pickups (from `ArmorRepair_100`) and its own assertion passed, because nothing
 else currently ends in `100`. Now it strips only known faction prefixes and
 requires a glob to cover at least two classes.
 
-**7. `.ed` cannot hold Valve 220, and that is settled.** See
+**7. A derivation cannot see its own gaps.** Tags are derived from ancestry and
+model path, so fifteen classes with neither — `WorldProperties` among them —
+came out untagged and invisible to every filter, and nothing complained: the
+derivation only ever looks at what it DID match. `emit_tags` now checks coverage
+from the other end and fails, naming the classes. Verified by removing one on
+purpose.
+
+**8. A placement count says what was placed, not what was meant.** Deciding
+which classes were "base" by counting objects across all 68 shipped worlds got
+nine right and three wrong. `FirstAidBase` is placed once and that placement
+draws a placeholder model — a bug in the level. `WeaponPowerup`, `InventoryItem`
+and `Cat` are placed, and are campaign furniture rather than anything a mapper
+builds with. All three corrections came from the owner, not the data.
+
+**9. `.ed` cannot hold Valve 220, and that is settled.** See
 `../shogo-re/decisions.md`. Do not reopen it as a preference question.
 
 ## Next steps (in order)
@@ -91,10 +111,12 @@ requires a glob to cover at least two classes.
    version gate. Carried from the last handoff and still the live hole: nothing
    rebuilds `ShogoMapping\trenchbroom-mcp.mjs`, which is what mappers actually
    run.
-3. **Neither release is packaged.** `package-hl.ps1` for the editor has not been
-   run since any of this; the kit zip is blocked while `shogo-re` carries
-   another thread's uncommitted work, since packaging a dirty tree is the
-   failure that rule exists to prevent.
+3. **The kit zip is still unpackaged**, blocked while `shogo-re` carries another
+   thread's uncommitted work — packaging a dirty tree is the failure that rule
+   exists to prevent. The EDITOR is released: `hl-1.18`, tagged, packaged and
+   pushed. Note that `package-hl.ps1` stages into `~/Downloads/TrenchBroom-HL`,
+   which IS the live install, so it fails on a locked DLL if the editor is
+   running — close it first.
 4. **Material browser tags.** The same design transfers — `MaterialNameTagMatcher`
    already exists and `tags.brushface` already uses it. Smaller win than for
    entities, because `MaterialBrowserView` already groups by collection path,
