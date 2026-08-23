@@ -115,14 +115,18 @@ the tool doing nothing.
 
 ## Open questions (need the owner's call)
 
-Both carried forward unchanged — neither was touched this session.
-
 - **Should the FGD keep exposing `angles` on DirLight?** It produces a correct
   arrow now, so probably yes, unless the rotate handle proves confusing.
-- **Standard vs Valve 220 for Shogo.** Standard is a 1:1 match for what
-  LithTech's `.ed` stores. Valve 220 would have to be decomposed on export —
-  exact for axis-aligned, rotated and scaled faces, lossy for anything sheared.
-  Not worth changing unless somebody hits the alignment limit in practice.
+
+**Settled 2026-08-23 — Standard vs Valve 220.** Standard stays; `shouldWriteValve`
+keeps its Shogo-workspace branch. The reasoning is in `../shogo-re/decisions.md`
+("Standard stays; Valve 220 is blocked by the `.ed` face record"), and the short
+version is that the `.ed` face record has no field for texture axes — five
+floats, paraxial, closed compiler — so Valve 220 would have to be decomposed on
+export, and the decomposition fails on exactly the alignments Valve 220 exists
+to provide. Do not reopen this as a preference question; if it comes back it
+comes back as the hybrid that decision names (Valve for editing, hard validator
+on export).
 
 ## Key files
 
