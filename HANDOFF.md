@@ -1,160 +1,140 @@
-# Handoff — trenchbroom-mcp (+ TrenchBroom-HL fork) — 2026-08-22 (evening)
+# Handoff — trenchbroom-mcp (+ TrenchBroom-HL fork) — 2026-08-23
 
-> Previous session left three integration fixes in, only one proven. **All three
-> are now proven end to end**, against a real Shogo deathmatch map. This session
-> wrote almost no code — it was a verification pass, plus one documentation fix
-> that came out of it.
+> The MCP side is closed: every fix it was carrying is now proven end to end.
+> The session then moved into the EDITOR, which is where most of the work is —
+> entity tags, a tag panel in the entity browser, favourites, and a View Options
+> rebuild. All of it verified in the running editor, none of it packaged.
 
-## Where things stand
+## Verified — ran, observed, evidence cited
 
-**Verified this session — ran, observed, evidence cited:**
+**trenchbroom-mcp**
 
-- **`compile_shogo_map` install routing.** Built `MP_McpDm` from an empty `.map`
-  through the MCP: sealed room (7 brushes), `WorldProperties`, four
-  `GameStartPoint`s with `GameType 1`, four `Light`s. Compiled clean — 98,939
-  bytes, 28,244 light map nodes, 9 objects, no errors or warnings — and the
-  `.dat` **landed in `Custom\maps\mp`**, not `Custom\` root.
-- **A routed map appears in the multiplayer host list.** Read the
-  `IDC_CUSTOMLIST` listbox contents directly with `LB_GETTEXT` rather than
-  eyeballing a screenshot: `MP_McpDm` at index 11 of 85. See the caveat about
-  *which* host list under Findings.
-- **`add_entity`, `set_entity_properties`, `translate_entity`, `fgd_class`**, none
-  of which had ever run against a Shogo map. All four work: entities written in
-  Standard format, a planted junk key removed, a spawn moved `[400,-400,0]` with
-  the origin updated, and `data/shogo.fgd` parsed with properties, choices and
-  defaults resolved.
-- **`map_overview` reports the face format correctly** — `format: standard` on
-  that map, agreeing with what `shouldWriteValve` chose. That closes most of the
-  previous handoff's step 4.
-- **The tool descriptions no longer lie about reloading.** Verified through the
-  built server, not by reading source: 7/7 writing tools carry the shared note,
-  0 still say "reload in TrenchBroom to see it".
+- **`compile_shogo_map` install routing.** `MP_McpDm` built from an empty `.map`
+  through the MCP — sealed room, four `GameStartPoint`s with `GameType 1`, four
+  `Light`s — compiled clean (98,939 bytes, 28,244 light map nodes) and installed
+  to `Custom\maps\mp`, not `Custom\` root.
+- **A routed map reaches the host list.** Read out of `IDC_CUSTOMLIST` with
+  `LB_GETTEXT` rather than eyeballed: `MP_McpDm` at index 11 of 85.
+- **`add_entity`, `set_entity_properties`, `translate_entity`, `fgd_class`** all
+  work against a Shogo map; `map_overview` reports `standard` correctly.
+- **Tool descriptions** no longer tell anyone to reload by hand: 7/7 writing
+  tools carry the shared note, 0 say the old thing.
 
-**Done but NOT verified at runtime:**
+**TrenchBroom-HL** (all in the editor, against Shogo)
 
-- **TrenchBroom-HL's disabled-state Run arrow.** Unchanged from last session:
-  the grey `DownArrowDisabled.svg` and the `::menu-arrow:disabled` rule are in
-  the compiled binary, and nobody has looked at a disabled Run button to see it
-  grey. Still one glance (open a Quake map, where there is no Shogo profile).
-
-**Known broken / unresolved:**
-
-- Nothing in these two repos.
+- **Entity browser grouping is case-insensitive.** `SHOGO_*` and `Shogo_*` were
+  two groups sorted adjacent; now one. Test verified by reverting the fix and
+  watching it fail on `3 == 1`.
+- **The filter box searches descriptions**, and the FGD now has descriptions
+  worth searching — `mech` 0→66 hits, `on-foot` 0→93, `pickup` 1→71.
+- **Entity tags**, a third `tags` kind beside `brush` and `brushface`, with a
+  matcher that holds a SET of globs.
+- **A tag panel** down the left of the entity browser. Selecting `Prop` narrows
+  to its four classes, `Enhancement` to its ten.
+- **Favorites**, per game, right-click a cell to star it. Starred one entity,
+  selected Favorites, got exactly that entity.
+- **Long names wrap** instead of shrinking to 5pt.
+- **View Options** is tabbed (Definitions | Tags) and the popup went from 1034px
+  to 554px.
+- **Unchecking a tag hides point entities.** Unchecking `Light` on `OF_Mecca`
+  removes the Light entities and leaves `WorldProperties` alone.
 
 ## Findings worth keeping
 
-**1. THERE ARE THREE BUILD OUTPUTS, not two, and the third is the one that
-ships to users.** The previous handoff warned about `dist/index.js` vs
-`dist/trenchbroom-mcp.mjs`. There is a third copy: **`ShogoMapping\trenchbroom-mcp.mjs`
-in the deployed kit workspace**, and `npm run dist` does not touch it. It was
-still the Aug 17 0.4.0 bundle — no `install_target`, no Standard-format fix —
-five days after both landed, so every mapper using the kit's own MCP had the
-bugs regardless of what this repo said. It is now re-synced.
+**1. A STALE BINARY IS THE DEFAULT FAILURE HERE, and it lies in both
+directions.** The MCP server was five days old and hid a fix that was in the
+source. Later, an editor built before the tag mechanism hid a BREAK: the Shogo
+game config had two duplicate tag names, which a tag-aware TrenchBroom rejects
+outright (`At line 131, column 25: Duplicate tag 'Volume'`, taking the whole
+game with it), and the old binary skipped the key it did not know and reported a
+clean load. **Rebuild the thing that reads the file before testing the file.**
 
-`npm run dist` is still the right command; it is just not sufficient. The
-copy into the kit belongs in `shogo-re/tools/makepackage.py`, with a gate
-asserting the shipped `.mjs` version matches `package.json` — the same shape as
-the `server version matches package.json` test here. Not done: it is a change
-to a different repo, which had another thread's uncommitted work in it.
+**2. Registration is not application.** All nineteen tags appeared in View
+Options and I read that as proof that placed entities carried them. It was not:
+the panel lists what is REGISTERED. Two separate things were missing —
+`EntityOwnerMatchVisitor` never visited `EntityNode` (so a Light, having no
+brushes, matched nothing) and `EditorContext::visible(EntityNode)` never
+consulted `hasTag`. Both are fixed; the lesson is that a list of tags proves
+only that the config parsed.
 
-**2. `serverInfo.version` is not reachable as a tool call, so use behaviour.**
-The previous handoff says "ask a suspect client for its version" — there is no
-tool that answers. Two things that DO work, both used here:
+**3. `CellView` already renders multi-line titles.** It splits on `\n` and lays
+lines out through `AttrString`. The obvious place to look says otherwise —
+`TextureFont` is a glyph-run renderer with no newline handling — so stopping
+there gives the wrong answer about how expensive wrapping is.
 
-- Does `compile_shogo_map` advertise an `install_target` parameter? Only 0.5.0 does.
-- Run `add_brush_box` on a map inside a Shogo workspace. 0.4.0 writes Valve 220
-  (`[ 1 0 0 0 ]` axis vectors); 0.5.0 writes Standard (`0 0 0 1 1`).
+**4. The entity browser lists POINT entities only.** Any tag whose classes are
+all `@SolidClass` can never have palette contents, which is why Shogo's `Door`
+and `Volume` sat in the panel filtering to nothing. The panel now hides such
+tags, derived rather than by exclusion list.
 
-**3. A stale server is the normal case, not the exception.** Six MCP server
-processes were alive at once, one per Claude session, each pinned to whatever
-`dist/index.js` was when its session started. Only the newest was current. A
-running stdio server cannot be hot-swapped and **killing the node process does
-not respawn it** — the tools go dead. A client restart is the only fix.
+**5. View Options grew from the TAG list, not the definitions list.** The
+definitions list has always scrolled internally. The tag checkboxes lived in the
+Brushes panel and gained a row per tag. That is also why they were in the wrong
+place — most of Shogo's tags are point entities.
 
-**4. ShogoFRESH has no in-game multiplayer menu at all**, so "the game's
-multiplayer host list" means the *dedicated server's*. `MainMenu.cpp:443`
-removes Multiplayer and Options deliberately ("the launcher owns both"), leaving
-campaign / credits / quit — so `ClientShellDLL/NetStart.cpp`'s `NetDlg_GameLevels`
-is unreachable in FRESH. The verification above was done against `FreshSrv.exe`'s
-wizard, which uses the identical scan
-(`NetStart_FillLevelList(hCustomList, "\\", CUSTOM_LEVEL)` in
-`ShogoServ/NetStart.cpp:1167`) over the same mounted tree. The routing is right
-for both; only one of them is reachable.
+**6. A verification that only checks today's data cannot catch a pattern too
+broad for tomorrow's.** The tag-glob compressor emitted `*100` and `*15` for
+pickups (from `ArmorRepair_100`) and its own assertion passed, because nothing
+else currently ends in `100`. Now it strips only known faction prefixes and
+requires a glob to cover at least two classes.
 
-**5. `shogo.fgd` has zero `base()` declarations** across all 320 classes. So
-`fgd_class`'s inheritance resolution cannot be exercised against it — the
-`base: []` in every result is the FGD being flat, not the tool failing. The
-inheritance path is covered by the FGD unit test instead.
-
-**6. TrenchBroom-HL auto-reloads, and nobody downstream knew.** Commit
-`b4308019b`: a `QFileSystemWatcher` on the open `.map`, debounced 500 ms
-("programs that write map files often do so in several steps"), calling
-`m_document->applyExternalChanges()` before any hard `reload()` — so an external
-edit appears with selection and camera intact. Preference
-`Editor/Reload map file on external change`, default true.
-
-The trap, and the reason it is in the tool descriptions rather than only here:
-**with unsaved edits open it does not reload silently.** It raises
-*"<file> was changed by another program. Reload it?"* with **"Keep My Changes"
-as the default button** — so an MCP write reaches disk, gets discarded, and the
-dialog can sit behind the editor window while it happens. It reads exactly like
-the tool doing nothing.
+**7. `.ed` cannot hold Valve 220, and that is settled.** See
+`../shogo-re/decisions.md`. Do not reopen it as a preference question.
 
 ## Next steps (in order)
 
-1. **Copy the bundle into the kit as part of `makepackage.py`**, with a version
-   gate. Finding 1 — this is the live hole; the kit was five days stale and
-   nothing would have caught it. Lives in `shogo-re`, so check that tree is
-   clean first.
-2. **Look at a disabled Run button** in TrenchBroom-HL and confirm the arrow is
-   grey. Carried over; still one glance.
-3. **Consider whether `install_target` should warn rather than obey** when it
-   contradicts the map's own `GameType`. Right now an explicit `"sp"` on a
-   `GameType 1` map silently hides it from the host list, which is the exact
-   failure the routing was written to prevent.
+1. **`check_tags_are_current()` in `makepackage.py`**, beside
+   `check_fgd_is_current()`. The `tags.entity` block in `GameConfig.cfg` is
+   GENERATED by `fgdgen.py --tags` and committed — exactly the duplication this
+   project guards everywhere else, and currently unguarded.
+2. **Copy the MCP bundle into the kit as part of `makepackage.py`**, with a
+   version gate. Carried from the last handoff and still the live hole: nothing
+   rebuilds `ShogoMapping\trenchbroom-mcp.mjs`, which is what mappers actually
+   run.
+3. **Neither release is packaged.** `package-hl.ps1` for the editor has not been
+   run since any of this; the kit zip is blocked while `shogo-re` carries
+   another thread's uncommitted work, since packaging a dirty tree is the
+   failure that rule exists to prevent.
+4. **Material browser tags.** The same design transfers — `MaterialNameTagMatcher`
+   already exists and `tags.brushface` already uses it. Smaller win than for
+   entities, because `MaterialBrowserView` already groups by collection path,
+   so it buys cross-cutting sets rather than a rescue.
+5. **Look at a disabled Run button** and confirm the arrow is grey. Carried for
+   three sessions now; still one glance.
 
-## Open questions (need the owner's call)
+## Open questions
 
-- **Should the FGD keep exposing `angles` on DirLight?** It produces a correct
-  arrow now, so probably yes, unless the rotate handle proves confusing.
-
-**Settled 2026-08-23 — Standard vs Valve 220.** Standard stays; `shouldWriteValve`
-keeps its Shogo-workspace branch. The reasoning is in `../shogo-re/decisions.md`
-("Standard stays; Valve 220 is blocked by the `.ed` face record"), and the short
-version is that the `.ed` face record has no field for texture axes — five
-floats, paraxial, closed compiler — so Valve 220 would have to be decomposed on
-export, and the decomposition fails on exactly the alignments Valve 220 exists
-to provide. Do not reopen this as a preference question; if it comes back it
-comes back as the hybrid that decision names (Valve for editing, hard validator
-on export).
+- **Should `Favorites` and `All` be able to combine with tags?** Today `All`
+  wins outright and `Favorites` composes (Favorites + Mech = starred mechs).
+  That was a judgement call, not a requirement.
+- **Should the FGD keep exposing `angles` on DirLight?** Unchanged, untouched.
 
 ## Key files
 
-- `src/shogo.ts` — `compileShogoMap`; `isMultiplayerMap` and the install block
-  are the routing, now proven.
-- `src/index.ts` — tool definitions. `EDITOR_NOTE` near the top is the shared
-  reload note appended to all seven writing tools; the comment above it carries
-  finding 6.
-- `src/map/builder.ts` — `shouldWriteValve` picks the face format for a new
-  brush; `inShogoWorkspace` is what makes an empty map come out Standard.
-- **Three build outputs.** `npm run build` → `dist/index.js` (what MCP clients
-  are registered against), `npm run bundle` → `dist/trenchbroom-mcp.mjs`,
-  `npm run dist` → both. **Neither touches `ShogoMapping\trenchbroom-mcp.mjs`**,
-  which is what the kit actually ships. See finding 1.
-- `npm test` — 21 tests, the closest thing this repo has to preflight. Includes
-  `server version matches package.json`, which is what keeps `serverInfo`
-  honest.
-- `../trenchbroom/lib/TbUiLib/src/MapWindow.cpp` — the Run button, and the
-  auto-reload watcher (`m_mapFileWatcher`, `mapFileChangedOnDisk`).
-- `../trenchbroom/package-hl.ps1` — assembles the TrenchBroom-HL release.
-- `../shogo-re/tools/makepackage.py` — kit packaging; where next step 1 goes.
-- `../shogo-re/HANDOFF.md` — a *different* thread's handoff. Read it for kit
-  context; do not treat it as this one's continuation.
+- `src/index.ts` — MCP tools. `EDITOR_NOTE` is the shared reload note on all
+  seven writing tools.
+- `src/shogo.ts` — `compileShogoMap`, install routing, proven.
+- **Three build outputs.** `npm run dist` builds `dist/index.js` and
+  `dist/trenchbroom-mcp.mjs`; it does NOT touch
+  `ShogoMapping\trenchbroom-mcp.mjs`, which is what the kit ships.
+- `npm test` — 21 tests, includes `server version matches package.json`.
+- `../trenchbroom/lib/TbMdlLib/src/TagMatcher.cpp` — `EntityClassNameTagMatcher`
+  (glob set, `matchesClassname` public) and `EntityOwnerMatchVisitor`.
+- `../trenchbroom/lib/TbMdlLib/src/ParseGameConfig.cpp` — the `entity` tag kind.
+- `../trenchbroom/lib/TbUiLib/src/EntityBrowser.cpp` — the tag panel, Favorites
+  and All, and the empty-tag rule.
+- `../trenchbroom/lib/TbUiLib/src/EntityBrowserView.cpp` — tag/favourite
+  filtering, `wrapTitle`, the description search.
+- `../trenchbroom/lib/TbUiLib/src/ViewEditor.cpp` — the tabbed View Options.
+- `../shogo-re/tools/fgdgen.py` — generates the FGD descriptions AND the
+  `tags.entity` block (`--tags`), both derived from ancestry and model path.
 
 ## Repo hazards
 
-- **`origin` is public upstream, `gitea` is the private fork — push to gitea.**
-  Applies to the `../trenchbroom` checkout (`origin` →
-  `TrenchBroom/TrenchBroom`, `gitea` → `Kyodan/trenchbroom-hl`).
-- **`get_git_describe()` runs at CMake configure time**, so tag, then
-  reconfigure, or the binary keeps announcing the old version.
+- **`origin` is public upstream in `../trenchbroom`; push to `gitea`.**
+- **`get_git_describe()` runs at CMake configure time** — tag, then reconfigure,
+  or the binary announces the old version. The deployed editor currently says
+  `hl-1.16-1-g311a19ce0`, which is six commits stale; reconfigure before the
+  next release build.
+- **`../shogo-re` has another thread's uncommitted work** in `HANDOFF.md`,
+  `decisions.md` and `out/MAP-ELEMENTS.md`. Commit only your own paths there.
