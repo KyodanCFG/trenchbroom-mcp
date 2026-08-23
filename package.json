@@ -1,6 +1,6 @@
 {
   "name": "trenchbroom-mcp",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "MCP server for editing Quake-format .map files (TrenchBroom-compatible)",
   "type": "module",
   "bin": {
