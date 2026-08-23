@@ -30,7 +30,31 @@ export interface ShogoCompileOptions {
   lighting?: boolean;
   /** Copy the finished .dat into the game's Custom\ folder. On by default. */
   install?: boolean;
+  /**
+   * Where under Custom\ to install: "mp" for Custom\maps\mp (the multiplayer
+   * host and rotation lists), "sp" for Custom\ itself (the single-player custom
+   * menu). Omitted, it is decided by the map's own GameStartPoint GameType.
+   */
+  installTarget?: "mp" | "sp";
   timeoutSeconds?: number;
+}
+
+
+/**
+ * Does this map's own spawns say it is multiplayer?
+ *
+ * A GameStartPoint's GameType is 0 for single player and 1 for deathmatch, and
+ * it defaults to 0 - which is also the value that keeps a map out of the
+ * multiplayer level list, so a map with any GameType 1 spawn is one somebody
+ * meant for multiplayer.
+ */
+function isMultiplayerMap(mapPath: string): boolean {
+  try {
+    const text = fs.readFileSync(mapPath, "utf8");
+    return /"GameType"\s+"1"/i.test(text);
+  } catch {
+    return false;
+  }
 }
 
 export interface ShogoCompileResult {
@@ -101,6 +125,7 @@ export function compileShogoMap({
   workspace,
   lighting = true,
   install = true,
+  installTarget,
   timeoutSeconds = 600,
 }: ShogoCompileOptions): ShogoCompileResult {
   if (!fs.existsSync(mapPath)) throw new Error(`no such map file: ${mapPath}`);
@@ -236,7 +261,23 @@ export function compileShogoMap({
   if (install && cfg.ShogoDir) {
     const custom = path.join(cfg.ShogoDir, "Custom");
     if (fs.existsSync(custom)) {
-      installedTo = path.join(custom, `${world}.dat`);
+      // WHICH FOLDER DECIDES WHICH MENU THE MAP APPEARS IN. Every mount
+      // flattens to the file-tree root, so the world loads by its bare name
+      // wherever it sits - but the launcher SCANS these folders to build its
+      // lists: Custom\maps\mp feeds the multiplayer rotation and host list and
+      // is excluded from the single-player menu, while Custom\ and
+      // Custom\maps\sp feed the single-player one.
+      //
+      // Installing everything to Custom\ root therefore compiles a perfectly
+      // good deathmatch map that never appears in the host list, and the only
+      // clue is its absence. Routed by what the map's own spawns say.
+      const dest = installTarget ?? (isMultiplayerMap(mapPath) ? "mp" : "sp");
+      const dir =
+        dest === "mp" ? path.join(custom, "maps", "mp")
+        : dest === "sp" ? custom
+        : custom;
+      fs.mkdirSync(dir, { recursive: true });
+      installedTo = path.join(dir, `${world}.dat`);
       fs.copyFileSync(datPath, installedTo);
     } else {
       warnings.push(`no Custom folder at ${custom} - the world was not installed`);

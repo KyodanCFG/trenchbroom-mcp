@@ -390,15 +390,25 @@ tool(
       .boolean()
       .optional()
       .describe("Copy the compiled .dat into the game's Custom folder. On by default."),
+    install_target: z
+      .enum(["mp", "sp"])
+      .optional()
+      .describe(
+        'Where under Custom to install. "mp" is Custom\\maps\\mp, which the multiplayer ' +
+          'host and rotation lists scan; "sp" is Custom itself, which the single-player ' +
+          "custom menu scans. Left out, it follows the map's own GameStartPoint GameType, " +
+          "so a deathmatch map lands where the host list will find it."
+      ),
     timeout_seconds: z.number().optional().describe("Per-step timeout. Default 600."),
   },
-  ({ map_path, kit_dir, workspace, lighting, install, timeout_seconds }) =>
+  ({ map_path, kit_dir, workspace, lighting, install, install_target, timeout_seconds }) =>
     compileShogoMap({
       mapPath: map_path,
       kitDir: kit_dir,
       workspace,
       lighting,
       install,
+      installTarget: install_target,
       timeoutSeconds: timeout_seconds,
     })
 );
