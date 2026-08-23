@@ -10,7 +10,8 @@
     "build": "tsc",
     "test": "tsc && node --test \"test/**/*.test.js\"",
     "start": "node dist/index.js",
-    "bundle": "node scripts/bundle.mjs"
+    "bundle": "node scripts/bundle.mjs",
+    "dist": "npm run build && npm run bundle"
   },
   "engines": {
     "node": ">=20"

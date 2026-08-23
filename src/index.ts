@@ -18,7 +18,15 @@ import { compileMap } from "./compile.js";
 import { launchMap } from "./launch.js";
 import { compileShogoMap } from "./shogo.js";
 
-const server = new McpServer({ name: "trenchbroom-mcp", version: "0.4.0" });
+// KEEP THIS IN STEP WITH package.json. It is what a client reports back as
+// serverInfo, which makes it the only way to tell WHICH BUILD a running client
+// is actually serving - and that matters more than it sounds: this repo has two
+// independent outputs from the same source (`npm run build` -> dist/index.js,
+// which clients are registered against, and `npm run bundle` ->
+// dist/trenchbroom-mcp.mjs, which the Shogo kit ships). Rebuilding one and not
+// the other left a client running five-day-old code while the source, the
+// bundle and the tests all said the fix was in. `npm run dist` builds both.
+const server = new McpServer({ name: "trenchbroom-mcp", version: "0.5.0" });
 
 // ---------- helpers ----------
 

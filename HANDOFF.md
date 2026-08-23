@@ -92,9 +92,17 @@
 - `src/shogo.ts` — `compileShogoMap` drives the Shogo kit; `isMultiplayerMap`
   and the install block are the unverified routing.
 - `src/index.ts` — tool definitions, including `install_target`.
-- `dist/trenchbroom-mcp.mjs` — the bundle that actually ships (gitignored).
-  **Rebuild with `npm run bundle` after any source change**, then repackage the
-  kit, or the kit ships the old server.
+- **`dist/` holds TWO independent outputs from the same source, and forgetting
+  one is how a fix disappears.** `npm run build` (tsc) writes `dist/index.js`,
+  which is what MCP CLIENTS are registered against; `npm run bundle` (esbuild)
+  writes `dist/trenchbroom-mcp.mjs`, which the Shogo kit ships. Rebuilding only
+  the bundle left a client running five-day-old code while the source, the
+  bundle and every test agreed the fix was in — and it looked exactly like the
+  fix not working. **`npm run dist` builds both**; do that, then repackage the
+  kit. Both are gitignored.
+- **`serverInfo.version` is how you tell which build a client is serving.** It
+  is a literal in `src/index.ts` and must be kept in step with `package.json`.
+  Ask a suspect client for it before debugging anything else.
 - `../trenchbroom/package-hl.ps1` — assembles the TrenchBroom-HL release and
   refuses to write a zip missing a Qt plugin known to matter.
 - `../trenchbroom/lib/TbUiLib/src/MapWindow.cpp` — the Run button: palette,
