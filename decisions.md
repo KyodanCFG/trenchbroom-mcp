@@ -98,3 +98,58 @@ cleanup. The pointfile is never removed.
 **Why:** The logs are litter — everything in them is already parsed out of the
 tool output — but a log that was already there belongs to somebody else. The
 pointfile is the artifact you load to trace a leak.
+
+## 2026-08-22 — An empty map's face format is decided by where the file lives
+
+**Decision:** `add_brush_box` no longer defaults to Valve 220 on an empty map.
+`shouldWriteValve` returns Standard when the map sits inside a Shogo workspace,
+identified by a `shogo-mapping.json` in an ancestor directory.
+
+**Why:** `usesValveFormat` answers "what is this map already?" by reading its
+first face, and an empty map has none, so it fell back to Valve — TrenchBroom's
+default for new Quake maps. Shogo's game config declares Standard and its
+converter parses only Standard, so the brush appeared correctly in the editor
+and the map would not compile. Worst possible shape: the symptom points at the
+compiler, not at the tool that wrote the file.
+
+**Rejected:** Reading the TrenchBroom game config (the MCP is not told which
+game a map belongs to); a required `format` parameter (every caller would have
+to know, and the common case is knowable without asking). An optional override
+is still worth adding if a third format ever appears.
+
+## 2026-08-22 — A compiled map installs where its own spawns say it belongs
+
+**Decision:** `compile_shogo_map` routes the installed `.dat` by the map's
+`GameStartPoint GameType` — `Custom\maps\mp` for multiplayer, `Custom\` for
+single player — with `install_target` to override.
+
+**Why:** Every rez mount flattens to the file-tree root, so a world loads by
+bare name wherever it sits. But the launcher SCANS these folders to build its
+menus: `Custom\maps\mp` feeds the multiplayer host and rotation lists and is
+excluded from the single-player menu. Installing everything to `Custom\` root
+produced a working deathmatch map that never appeared in the host list, with
+its absence as the only clue.
+
+**Rejected:** Always asking the caller (the map already knows); a name-prefix
+convention like `MP_` (a convention that has to be remembered is one that gets
+forgotten, and the spawns are authoritative).
+
+## 2026-08-22 — The .map stores yaw in TrenchBroom's frame, not Shogo's
+
+**Decision:** `map2ed.map_yaw` converts a DirLight's yaw between frames on read
+and write — `Y = 90 − y` — so the `.map` carries the editor's convention and
+stock TrenchBroom draws a correct aim arrow.
+
+**Why:** The previous conclusion was that nothing could be done because the
+pointer belongs to TrenchBroom. That was wrong about where the boundary sits:
+the pointer is theirs, the value it reads is ours. Two indicators that
+contradict each other are worse than one, and the arrow was right on the 86% of
+DirLights with yaw 0 and silently 90° out on the rest.
+
+**Rejected:** Removing `angles` from the FGD so no arrow is drawn (loses the
+editor's rotate handle, and an absent indicator is still worse than a correct
+one); a fork-only fix in TrenchBroom (the kit targets stock).
+
+**Note the sign.** It is a reflection, not a rotation — `+90` is correct only at
+yaw 45. Being its own inverse is what makes one function safe in both
+directions.
