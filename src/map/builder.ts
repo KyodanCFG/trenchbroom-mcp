@@ -1,3 +1,5 @@
+import fs from "node:fs";
+import path from "node:path";
 import type { Brush, Entity, Face, MapFile, Vec3 } from "./model.js";
 import { getProp } from "./model.js";
 
@@ -15,6 +17,44 @@ export function usesValveFormat(map: MapFile): boolean {
     }
   }
   return true;
+}
+
+/**
+ * The face format to WRITE into this map, given where it lives.
+ *
+ * usesValveFormat answers "what is this map already?", and on an EMPTY map
+ * there is nothing to read, so it falls back to Valve 220 - right for Quake,
+ * and silently wrong for a game whose config says Standard. The failure is the
+ * worst shape there is: the brush appears in TrenchBroom, looks correct, and
+ * the map does not compile, because a Standard-only converter cannot parse
+ * `[ 1 0 0 0 ]` axis vectors.
+ *
+ * So the fallback asks where the file is instead of guessing. A Shogo
+ * workspace is identifiable - setup.ps1 writes shogo-mapping.json at its root,
+ * and maps live under it - and Shogo's game config declares Standard. Nothing
+ * changes for a map that already has brushes, or for a map outside such a
+ * workspace.
+ */
+export function shouldWriteValve(map: MapFile, mapPath?: string): boolean {
+  for (const e of map.entities) {
+    for (const b of e.brushes) {
+      for (const f of b.faces) return f.uAxis !== undefined;
+    }
+  }
+  const world = map.entities[0];
+  if (world && getProp(world, "mapversion") === "220") return true;
+  return mapPath ? !inShogoWorkspace(mapPath) : true;
+}
+
+function inShogoWorkspace(mapPath: string): boolean {
+  let dir = path.dirname(path.resolve(mapPath));
+  for (let i = 0; i < 8; i++) {
+    if (fs.existsSync(path.join(dir, "shogo-mapping.json"))) return true;
+    const up = path.dirname(dir);
+    if (up === dir) break;
+    dir = up;
+  }
+  return false;
 }
 
 interface BoxFaceSpec {

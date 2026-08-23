@@ -10,7 +10,7 @@ import { classname, getProp, parseOrigin, removeProp, setProp } from "./map/mode
 import { parseMap } from "./map/parser.js";
 import { serializeMap } from "./map/writer.js";
 import { entityBounds, mapBounds } from "./map/geometry.js";
-import { makeBoxBrush, translateEntity, usesValveFormat } from "./map/builder.js";
+import { makeBoxBrush, shouldWriteValve, translateEntity, usesValveFormat } from "./map/builder.js";
 import { renderView, type ViewName } from "./render/svg.js";
 import { atomicWrite, ensureTbMcpDir, listBackups, restoreLatest, snapshot } from "./backup.js";
 import { parseFgd, resolveClass } from "./fgd/parser.js";
@@ -227,7 +227,7 @@ tool(
 
 tool(
   "add_brush_box",
-  "Add an axis-aligned box brush. Defaults to worldspawn (entity 0); pass entity_index to add to a brush entity like func_door. Matches the map's texture format (Valve 220 or standard).",
+  "Add an axis-aligned box brush. Defaults to worldspawn (entity 0); pass entity_index to add to a brush entity like func_door. Matches the map's existing texture format; on an empty map inside a Shogo workspace it writes Standard, which is the only format that game's converter reads.",
   {
     map_path: mapPathSchema,
     min: vec3Schema.describe("Minimum corner [x y z]"),
@@ -242,7 +242,7 @@ tool(
       }
       const idx = entity_index ?? 0;
       const e = entityAt(map, idx);
-      e.brushes.push(makeBoxBrush(min as Vec3, max as Vec3, texture, usesValveFormat(map)));
+      e.brushes.push(makeBoxBrush(min as Vec3, max as Vec3, texture, shouldWriteValve(map, map_path)));
       return { entity: idx, brushIndex: e.brushes.length - 1, min, max, texture };
     })
 );
