@@ -28,6 +28,22 @@ import { compileShogoMap } from "./shogo.js";
 // bundle and the tests all said the fix was in. `npm run dist` builds both.
 const server = new McpServer({ name: "trenchbroom-mcp", version: "0.5.0" });
 
+// Appended to every tool that WRITES the map file.
+//
+// TrenchBroom-HL watches the open .map (QFileSystemWatcher, 500ms debounce)
+// and calls applyExternalChanges() before any hard reload, so an edit made
+// out here shows up on its own with the selection and camera intact. These
+// descriptions used to say "reload in TrenchBroom to see it", which has been
+// wrong since that landed and had the mapping thread reloading by hand.
+//
+// The unsaved-edits case belongs in the DESCRIPTION rather than in this
+// comment, because it presents as the tool silently failing: TrenchBroom
+// raises a modal whose default button KEEPS the editor version, so the write
+// reaches disk and is then discarded - and the dialog can sit behind the
+// editor window while it happens.
+const EDITOR_NOTE =
+  " Writes the file; TrenchBroom-HL reloads it automatically, but asks first - and defaults to KEEPING the editor version - if the document has unsaved edits.";
+
 // ---------- helpers ----------
 
 function loadMap(mapPath: string): MapFile {
@@ -185,7 +201,7 @@ tool(
 
 tool(
   "add_entity",
-  "Add a point entity (e.g. a light, monster, item). Writes the file; reload in TrenchBroom to see it.",
+  "Add a point entity (e.g. a light, monster, item)." + EDITOR_NOTE,
   {
     map_path: mapPathSchema,
     classname: z.string().describe('Entity class, e.g. "light" or "info_player_start"'),
@@ -204,7 +220,7 @@ tool(
 
 tool(
   "set_entity_properties",
-  "Set and/or remove properties on an existing entity.",
+  "Set and/or remove properties on an existing entity." + EDITOR_NOTE,
   {
     map_path: mapPathSchema,
     index: z.number().int(),
@@ -222,7 +238,7 @@ tool(
 
 tool(
   "delete_entity",
-  "Delete an entity (and all its brushes). Refuses to delete worldspawn.",
+  "Delete an entity (and all its brushes). Refuses to delete worldspawn." + EDITOR_NOTE,
   { map_path: mapPathSchema, index: z.number().int() },
   ({ map_path, index }) =>
     withMap(map_path, (map) => {
@@ -235,7 +251,7 @@ tool(
 
 tool(
   "add_brush_box",
-  "Add an axis-aligned box brush. Defaults to worldspawn (entity 0); pass entity_index to add to a brush entity like func_door. Matches the map's existing texture format; on an empty map inside a Shogo workspace it writes Standard, which is the only format that game's converter reads.",
+  "Add an axis-aligned box brush. Defaults to worldspawn (entity 0); pass entity_index to add to a brush entity like func_door. Matches the map's existing texture format; on an empty map inside a Shogo workspace it writes Standard, which is the only format that game's converter reads." + EDITOR_NOTE,
   {
     map_path: mapPathSchema,
     min: vec3Schema.describe("Minimum corner [x y z]"),
@@ -257,7 +273,7 @@ tool(
 
 tool(
   "delete_brush",
-  "Delete one brush from an entity.",
+  "Delete one brush from an entity." + EDITOR_NOTE,
   {
     map_path: mapPathSchema,
     entity_index: z.number().int(),
@@ -274,7 +290,7 @@ tool(
 
 tool(
   "translate_entity",
-  "Move an entity by a delta: shifts all brush geometry (keeping textures locked in Valve format) and/or the origin property.",
+  "Move an entity by a delta: shifts all brush geometry (keeping textures locked in Valve format) and/or the origin property." + EDITOR_NOTE,
   { map_path: mapPathSchema, index: z.number().int(), delta: vec3Schema.describe("Offset [dx dy dz]") },
   ({ map_path, index, delta }) =>
     withMap(map_path, (map) => {
@@ -288,7 +304,7 @@ tool(
 
 tool(
   "undo_last_edit",
-  "Restore the map to its state before the most recent edit made by this server (snapshot-based; one step per call).",
+  "Restore the map to its state before the most recent edit made by this server (snapshot-based; one step per call)." + EDITOR_NOTE,
   { map_path: mapPathSchema },
   ({ map_path }) => {
     const restored = restoreLatest(map_path);
