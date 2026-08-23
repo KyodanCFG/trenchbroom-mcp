@@ -3,7 +3,7 @@
 > The MCP side is closed: every fix it was carrying is now proven end to end.
 > The session then moved into the EDITOR, which is where most of the work is —
 > entity tags, a tag panel in the entity browser, favourites, and a View Options
-> rebuild. All of it verified in the running editor, none of it packaged.
+> rebuild. All of it verified in the running editor and released as hl-1.18.
 
 ## Verified — ran, observed, evidence cited
 
