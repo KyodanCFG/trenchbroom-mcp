@@ -1,4 +1,4 @@
-# Handoff — trenchbroom-mcp (+ TrenchBroom-HL fork) — 2026-08-25 (released hl-1.20)
+# Handoff — trenchbroom-mcp (+ TrenchBroom-HL fork) — 2026-08-25 (released hl-1.21)
 
 > The session closed the model-orientation question that three previous rounds
 > only argued about, and it closed it with a FIXTURE rather than with reasoning.
@@ -112,7 +112,8 @@ person will look.
 
 ## Artefacts
 
-- `C:\Users\BHuq\Downloads\TrenchBroom-HL-1.20-Win64.zip` (74.3 MB, 363 files)
+- `C:\Users\BHuq\Downloads\TrenchBroom-HL-1.21-Win64.zip` (74.4 MB, 363 files)
+- `C:\Users\BHuq\Downloads\TrenchBroom-HL-1.20-Win64.zip` (74.3 MB)
 - `shogo-re\out\package\ShogoMapping.zip`
 
 **The editor was RUNNING from `C:\Users\BHuq\Downloads\TrenchBroom-HL` during
@@ -128,6 +129,66 @@ The lesson is the one this project keeps relearning: a stale binary lies in
 both directions. It hid a fix one week, hid a break the next, and here it
 invited a crash to be attributed to the map.
 
+## hl-1.21 — the outliner, and the UI cleanup around it
+
+**The Layers panel is now a tree**, and `Outliner` REPLACES `LayerListBox`
+rather than sitting beside it. The constraint that kept this small: LayerEditor
+needed exactly three methods and six signals from its inner widget, so all ~14
+layer commands are untouched and the diff stays off files upstream edits often.
+
+- `QAbstractItemModel` over the live nodes, not a `QTreeWidget` — the latter
+  materialises an item per node, fine for a test room and not for a shipped
+  world. Nothing copies the tree; a `QModelIndex` carries the `Node*`.
+- **Recursive filtering** is what makes the filter box answer "where is this
+  entity" — without it, typing a name hides the entity's own layer and group
+  and takes the entity down with them.
+- Visibility and lock now work on **every row**, as eye/padlock icon columns
+  with no header. That came free: `hideNodes`/`lockNodes` were never
+  layer-specific, LayerEditor was just the only caller.
+- Shift-click the eye **isolates**, same gesture and meaning as View Options.
+- **Rename**: layers and groups natively; an entity through the property typed
+  `target_source`, which is the FGD saying which key is the name. Not hardcoded
+  to `Name` — the type is the question, not the spelling.
+- Context menu acts on the **selection**, across groups and layers: group,
+  ungroup, hide, show, isolate, lock, unlock. A layer clicked alone still hands
+  back to LayerEditor's much richer menu.
+- The default layer is displayed as **"Main Layer"**. Display name only: it
+  still cannot be renamed, because `NodeSerializer` writes that layer's colour,
+  lock, hidden and omit-from-export onto worldspawn but *never its name*, so a
+  typed one would vanish on save.
+
+**Two bugs found by using it, neither where it looked:**
+
+- **A new group landed wherever the FIRST-selected node lived.**
+  `parentForNodes` returns `nodes.at(0)->parent()`, so grouping across two
+  sibling groups put the result inside whichever was clicked first — reverse
+  the order, different answer. `groupSelectedNodes` now uses the deepest common
+  ancestor. Fixed in the command, not the outliner, because **Ctrl+G had it
+  too**.
+- **Hide cleared the tree selection and Show did not.** That asymmetry was the
+  model being right: `hideNodes` deliberately deselects what it hides (a hidden
+  selected node could be dragged invisibly), and lock does the same. So the map
+  selection still drops them and the TREE's no longer has to agree —
+  `m_pendingSelection` outranks the map for exactly one rebuild.
+
+**Also in 1.21:** Mods is hidden for games whose filesystem `searchpath` is
+`"."` (for Shogo it listed `build`, `data`, `maps`, `python`, `textures`... as
+mods, because `"."` never matches a directory name — build output presented
+as a mod). Map Properties defaults collapsed instead, because it is unused
+rather than wrong. Both browsers' control rows moved to the top. The entity
+browser's Group button is gone (the tag panel does that job by meaning, not by
+name prefix) and its sort dropdown is now direction — Name A-Z / Z-A —
+since "Usage" asked a question the outliner answers properly.
+
+**shogo-re:** `map2ed.py` treats `_tb_` as a PREFIX rule rather than a list of
+five keys. `_tb_transformation` and `_tb_linked_group_id` both appear the moment
+anyone makes a group, which the outliner is now one right-click from.
+
+**Dropped rather than deferred:** reordering entities within a layer. Layers
+have a real `_tb_layer_sort_index`; entities have no ordering concept in the
+format, so it would have meant inventing one to serve organisation that groups
+already serve.
+
 ## Queued, not started
 
 - **The entity outliner / hierarchy panel.** Explicitly deferred by the user
@@ -135,6 +196,19 @@ invited a crash to be attributed to the map.
   was "how would I locate a specific entity within a map?".
 - **Per-tag instance counts in View Options** are built but have not been LOOKED
   at in the running editor. The browser's class counts have been.
+- **The asset-browser restructure**: fold the entity and material browsers into
+  one tabbed asset browser, move it to the InfoPanel, and drop the Map/Entity/
+  Face inspector tabs for a contextual inspector. These are ONE change, not
+  three — the inspector only becomes cleanly contextual once the palettes have
+  moved out of it. Two decisions already taken, so they are not re-litigated:
+  tabs rather than a dropdown, and do NOT auto-switch the palette category from
+  selection (contextual is right for an inspector, which describes what you
+  have; a palette is where you go for the NEXT thing, and re-switching under you
+  fights the user).
+- **Soft map bounds for Shogo.** If the processor has a world extent limit,
+  declaring it in GameConfig would make the Map Properties panel start warning
+  about out-of-bounds geometry and earn its place. Nobody has checked whether
+  such a limit exists.
 
 ## Open — a crash, not yet reproduced
 
