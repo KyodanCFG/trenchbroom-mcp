@@ -107,9 +107,15 @@ group name instead.
 **The editor was RUNNING from `C:\Users\BHuq\Downloads\TrenchBroom-HL` during
 packaging**, so `package-hl.ps1` could not clear its staging folder
 (`qsvgicon.dll` locked). Packaged to a scratch `-OutDir` and copied the zip
-across. The staged FOLDER in Downloads is therefore still 1.19; the zip is 1.20.
-Close the editor and re-run with the default `-OutDir` if the unpacked folder
-matters.
+across, which left the unpacked folder on 1.19 - and that stale folder is what
+produced the crash report below, from a build two commits behind the fix it was
+being tested against. It has SINCE been refreshed: with the editor closed,
+`package-hl.ps1 -Version 1.20` ran against the default `-OutDir` and the
+installed exe now announces `hl-1.20`.
+
+The lesson is the one this project keeps relearning: a stale binary lies in
+both directions. It hid a fix one week, hid a break the next, and here it
+invited a crash to be attributed to the map.
 
 ## Queued, not started
 
