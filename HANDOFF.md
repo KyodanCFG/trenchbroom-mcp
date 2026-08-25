@@ -61,10 +61,13 @@ group name instead.
   `MapRenderer.cpp:256`, `gl.enable(GL_CULL_FACE)`: a point light's radius is
   room-scale, so the camera is INSIDE the sphere looking at its backfaces.
   The speculative fix was reverted rather than shipped on a false rationale.
-  **The 2D views draw edges, which are not culled — the range circle is visible
-  there now.** A hollow shell is not expressible as one convex brush, so making
-  it visible from within needs a different primitive (three thin orthogonal
-  rings is the obvious candidate) — not yet designed, not yet asked for.
+  **NOW FIXED** by replacing the sphere with three orthogonal rings of wedges:
+  from the centre you meet a segment's inner face, whose normal points back at
+  you, so it is front-facing and drawn. `--point-style sphere` keeps the old
+  one-brush form. The cost is `3 x segments` brushes per light instead of 1.
+  A `_bounds_ok` gate now intersects every triple of a helper's planes and
+  refuses to write anything that does not bound a solid, counting what it
+  dropped.
 - **The `%g` / one-unit-span observation is still true, just not the cause.**
   It is real headroom lost for any large or many-faced generated solid. Recorded
   here rather than fixed, because nothing currently demonstrates it biting.
@@ -115,6 +118,27 @@ matters.
   was "how would I locate a specific entity within a map?".
 - **Per-tag instance counts in View Options** are built but have not been LOOKED
   at in the running editor. The browser's class counts have been.
+
+## Open — a crash, not yet reproduced
+
+Reopening `ZZ_AngleRef` crashed the editor. Two things the report settles and
+one it does not:
+
+- **The build was `hl-1.19-2-g173e12937-dirty`**, not 1.20 — the installed
+  folder was stale for exactly the packaging reason recorded above. It has
+  since been refreshed and now announces `hl-1.20`. Retry there first.
+- **The log shows three `Applying the changes made to ...` lines** — our fork's
+  HOT RELOAD firing, because the file was being regenerated under the open
+  document. Reason `3765269347` = `0xE06D7363`, an unhandled C++ exception (not
+  a null dereference), thrown from a paint after a widget show.
+- **TrenchBroom's recovery save had written `_tb_linked_group_id` onto every
+  one of the generated groups, and `makeangleref.py` emits no such key.** So
+  each hot reload handed the document a file whose groups had lost their link
+  identities. That is the first thing to bisect — `UpdateLinkedGroupsHelper`,
+  `Map_Groups` — but it is a HYPOTHESIS. Nothing has been reproduced.
+
+Bisect by opening in 1.20 with the editor otherwise idle, then with helper
+layers stripped (`--no-points --no-spots`), then with the groups removed.
 
 ## Standing hazards
 
