@@ -5,7 +5,8 @@
 > That is the transferable part. Everything else here — tag counts, the light
 > cone rim, the host profile — is small beside it.
 >
-> One thing is deliberately left open, and the fixture now asks it out loud.
+> The fixture then closed the last of it: the yaw convention is confirmed in
+> the game, all four cardinals, and `map_yaw` needed no change.
 
 ## Verified — ran, observed, evidence cited
 
@@ -32,23 +33,33 @@
 - **The kit still packages.** `makepackage.py` clean, including the ~90s smoke
   test that unzips the kit and runs `setup.ps1` into a fresh workspace.
 
-## Open — the one question the fixture now asks
+## CLOSED — the yaw convention is settled, in the game
 
-**Do yaw 90 and yaw 270 face the right way in the ENGINE?**
+**`map_yaw` is correct as written. Nothing needed changing.**
 
-yaw 0 and yaw 180 came out right in play, which sounds like the matter is
-settled and is not. `map_yaw` is a REFLECTION (`Y = 90 - y`), so a wrong sign
-SWAPS 90 and 270 while leaving 0 and 180 looking perfect. The two cases are
-indistinguishable from everything observed so far.
+`ZZ_Yaw270` — one centred `GameStartPoint`, +Y wall green, -Y wall blue —
+spawns you facing **BLUE**, which is -Y, which is what the editor draws for
+yaw 270. Engine and editor agree.
 
-So `ZZ_AngleRef`'s +Y and -Y walls are labelled with the question rather than
-an answer — `+Y wall  (does yaw 90 point here?)`. Compile it, spawn at the
-`yaw 90` and `yaw 270` points, read the wall. Do not settle this by reading
-`map_yaw`; that is what the last three rounds did.
+That one reading closes all four, and the reason is worth keeping: a wrong sign
+here can only appear as one of two mirrors. About X swaps 90 and 270 and leaves
+0 and 180 untouched; about Y does the reverse. 0 and 180 were already confirmed
+in play, so 270 rules out the remaining one. There is no third way to be wrong.
 
-The +X wall is green and confirmed. -X is blue. Only two flat colour swatches
-exist in the whole texture set, which is why the side walls are labelled by
-group name instead.
+**Two things that looked like evidence and were not**, since three earlier
+rounds died on them:
+
+- **The editor drawing 270 towards -Y proves nothing.** TrenchBroom renders
+  `angle` in the Quake convention regardless of what `map_yaw` does, and never
+  calls it. The editor cannot testify about its own import.
+- **A four-spawn room in the game cannot answer it either.** You get one of the
+  spawns at random with no label, so the observation cannot be attached to a
+  yaw. That is an ambiguity about WHERE YOU SPAWNED, which no amount of extra
+  paint fixes. `makeangleref.py --single <yaw>` exists for exactly this: one
+  spawn, centred, nowhere else to have come from.
+
+Recorded on `map_yaw` itself in `tools/map2ed.py`, which is where the next
+person will look.
 
 ## Corrected mid-session — worth keeping, both were mine
 
