@@ -205,10 +205,9 @@ already serve.
   selection (contextual is right for an inspector, which describes what you
   have; a palette is where you go for the NEXT thing, and re-switching under you
   fights the user).
-- **Soft map bounds for Shogo.** If the processor has a world extent limit,
-  declaring it in GameConfig would make the Map Properties panel start warning
-  about out-of-bounds geometry and earn its place. Nobody has checked whether
-  such a limit exists.
+- **Does the ENGINE load a world out near MaxBounds?** The compiler is happy at
+  400,000 (below); nothing has run one. Not obviously worth a playtest at 25x
+  any real map, but it is an honest gap.
 
 ## Open — a crash, not yet reproduced
 
@@ -230,6 +229,41 @@ one it does not:
 
 Bisect by opening in 1.20 with the editor otherwise idle, then with helper
 layers stripped (`--no-points --no-spots`), then with the groups removed.
+
+## MEASURED: the compiler's world limit is 400,000 units, and it is a WARNING
+
+Asked because Map Properties was showing a blank radio button for want of an
+answer, and settled by compiling rather than by reading the binary.
+
+`Processor.exe` does carry the check - `MaxBounds` and
+`** Found an out-of-bounds brush` are both strings in it. **That proves nothing
+on its own**: `SelectOutOfBoundsBrushes` sits right beside them and reads like
+DEdit's UI, and shared code says nothing about what the COMPILER does. So a
+sealed room was compiled with its centre at a range of distances and the log
+read each time.
+
+- **400,000 units per axis**, bracketed to 200: a room reaching 399,900 is
+  clean, one reaching 400,100 reports **five** out-of-bounds brushes - exactly
+  the five of its six walls that cross the line, with the far wall entirely
+  inside and silent. That count corroborates the number independently.
+- **It is a warning, not a refusal.** The `.dat` is still written and the log
+  still says "Found 0 problem brushes" alongside it. Which is what makes
+  declaring it worth anything: a brush dragged to 500,000 by accident compiles,
+  reports itself in a log nobody reads, and ships.
+- **Not a design budget.** Monolith's largest shipped world reaches 15,744 from
+  the origin; the longest campaign span is 22,400. The limit sits 25x past
+  anything built on purpose, so this is a backstop against a mis-drag.
+- Coordinates round-trip **exactly at 131,072**, checked in the compiled `.dat`
+  rather than assumed from the float width.
+
+`softMapBounds` is now declared in the Shogo `GameConfig.cfg` (kit source and
+the live install both), so Map Properties has something real to show.
+
+**One thing this exposed about our own tools.** The probe generator failed to
+export past 10^6, and that is `%g` - six significant digits - collapsing a face's
+three plane points into one. `makemap.face_line` shares the formatting. It is
+the same hazard flagged and reverted earlier in the session, now DEMONSTRATED
+rather than theoretical, but it sits well outside `MaxBounds` so it stays a note.
 
 ## Standing hazards
 
