@@ -1,4 +1,4 @@
-# Handoff — trenchbroom-mcp (+ TrenchBroom-HL fork) — 2026-08-25 (released hl-1.21)
+# Handoff — trenchbroom-mcp (+ TrenchBroom-HL fork) — 2026-08-25 (released hl-1.22)
 
 > The session closed the model-orientation question that three previous rounds
 > only argued about, and it closed it with a FIXTURE rather than with reasoning.
@@ -112,7 +112,8 @@ person will look.
 
 ## Artefacts
 
-- `C:\Users\BHuq\Downloads\TrenchBroom-HL-1.21-Win64.zip` (74.4 MB, 363 files)
+- `C:\Users\BHuq\Downloads\TrenchBroom-HL-1.22-Win64.zip` (74.5 MB, 363 files)
+- `C:\Users\BHuq\Downloads\TrenchBroom-HL-1.21-Win64.zip` (74.4 MB)
 - `C:\Users\BHuq\Downloads\TrenchBroom-HL-1.20-Win64.zip` (74.3 MB)
 - `shogo-re\out\package\ShogoMapping.zip`
 
@@ -189,6 +190,77 @@ have a real `_tb_layer_sort_index`; entities have no ordering concept in the
 format, so it would have meant inventing one to serve organisation that groups
 already serve.
 
+## hl-1.22 - the asset browser, and the inspector reshaped around it
+
+**The entity and material browsers are one AssetBrowser**, with Entities and
+Textures as categories, and it can live in the **info panel, the inspector, or
+its own window** (View menu, three checkable items). Both of those requests
+turned out to be one mechanism with three destinations, so it is built once.
+
+- `TabBook` could add a page and never give one back; `TabBook::removePage` and
+  `TabBar::removeTab` are the new primitives that gated all of it. The page
+  SURVIVES removal and is unparented - which is why moving hosts is a reparent
+  rather than a rebuild, so category, scroll position and filter text all
+  survive the move.
+- `MapWindow` owns the browser, not any of the three hosts, because it can be
+  in any of them and the owner has to outlive all three.
+- Closing the floating window puts the browser BACK in the info panel rather
+  than destroying it.
+- Reveal-material is host-aware: it surfaces the browser wherever it lives.
+
+**The inspectors are contextual now**, which is what moving the palettes out was
+for: Entity and Face hold one editor each and describe the selection. **The
+outliner takes the top half of the inspector** on a remembered splitter, since
+navigation should not be a tab you switch away from to see what you found.
+`InspectorPage` renumbers from 0; Ctrl+1 keeps its key and changes its meaning
+to "reveal the outliner".
+
+**Both browsers stopped wasting the width.** List mode sized each cell to the
+VIEW, so a 2,000-pixel panel showed one 64-pixel thumbnail per row. Sized to
+content, the existing reflow fills the width with columns. Explorer's List
+flows down and scrolls sideways; this flows across and scrolls down - same
+density, one scroll axis, and vertical suits a panel that is either short and
+wide or popped out and tall.
+
+**The entity browser gained Grid/List and a size dropdown**, which it had never
+had. The size LIST is shared with the material browser; the stored preference
+is not, because a texture is judged by its pattern and wants to be large while
+an entity is picked by name and wants to be small.
+
+**The settings row is gone.** It was a `SwitchableTitledPanel` whose title said
+"Entities" directly under a tab that already said "Entities". The title was
+duplication; the switch was real, so it moved into the tab bar via
+`TabBookPage::createTabBarPage`. It could NOT go in the browser's control bar -
+that bar belongs to the browser, so switching to Settings would have taken the
+toggle with it.
+
+### Four bugs, all the same shape
+
+Worth keeping together, because they were one mistake wearing four hats:
+**reasoning that held while a panel only ever GAINED things, and stopped the
+moment it could lose them.**
+
+- **Dead members left behind.** Removing the call to `createMaterialBrowser`
+  left the member, the factory and a `documentWasLoaded` notifier that still
+  dereferenced it - a null `setVisible` on every map load. A member that is
+  only ever null is not dead weight, it is the next crash.
+- **`removePage` threw `out_of_range` through a Qt signal.** Order (the bar
+  shrank before the layout emitted), range (a stacked layout reports -1 while
+  removing), and resync (the bar guessed which button to press). `addPage`
+  could never produce -1, which is why it appeared the moment removal existed.
+- **The pop-out window came up empty.** A `QStackedLayout` hides non-current
+  pages and that hidden state belongs to the WIDGET, surviving reparenting.
+- **The pop-out window outlived its document.** `Qt::Window` makes a top-level
+  frame; it does not give it an OWNER. Unparented, it survived the close still
+  holding a `QOpenGLWidget` and painted against freed state.
+
+### Release hazard, on top of the known one
+
+`get_git_describe()` runs at CONFIGURE time - and the generated `Version.h` is
+written at the END of a build, so the FIRST build after tag-and-reconfigure
+still links the old string. Tag, reconfigure, build, then **build again**, and
+check the exe actually contains the new version before packaging.
+
 ## Queued, not started
 
 - **The entity outliner / hierarchy panel.** Explicitly deferred by the user
@@ -196,15 +268,12 @@ already serve.
   was "how would I locate a specific entity within a map?".
 - **Per-tag instance counts in View Options** are built but have not been LOOKED
   at in the running editor. The browser's class counts have been.
-- **The asset-browser restructure**: fold the entity and material browsers into
-  one tabbed asset browser, move it to the InfoPanel, and drop the Map/Entity/
-  Face inspector tabs for a contextual inspector. These are ONE change, not
-  three — the inspector only becomes cleanly contextual once the palettes have
-  moved out of it. Two decisions already taken, so they are not re-litigated:
-  tabs rather than a dropdown, and do NOT auto-switch the palette category from
-  selection (contextual is right for an inspector, which describes what you
-  have; a palette is where you go for the NEXT thing, and re-switching under you
-  fights the user).
+- **The textures control bar** wants a clean-up; the user is still deciding what
+  it should be. The entity bar now carries layout mode, sort direction, size,
+  Used and search, which is a lot of controls for a narrow panel.
+- **Column-major List** (flow down, scroll sideways, as Explorer does) if the
+  current across-and-down reflow turns out to read wrong. It means changing
+  `Layout` and `CellView`, which both browsers share.
 - **Does the ENGINE load a world out near MaxBounds?** The compiler is happy at
   400,000 (below); nothing has run one. Not obviously worth a playtest at 25x
   any real map, but it is an honest gap.
