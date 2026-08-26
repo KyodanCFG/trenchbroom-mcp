@@ -1,4 +1,4 @@
-# Handoff — trenchbroom-mcp (+ TrenchBroom-HL fork) — 2026-08-25 (released hl-1.22)
+# Handoff — trenchbroom-mcp (+ TrenchBroom-HL fork) — 2026-08-25 (released hl-1.23)
 
 > The session closed the model-orientation question that three previous rounds
 > only argued about, and it closed it with a FIXTURE rather than with reasoning.
@@ -112,7 +112,8 @@ person will look.
 
 ## Artefacts
 
-- `C:\Users\BHuq\Downloads\TrenchBroom-HL-1.22-Win64.zip` (74.5 MB, 363 files)
+- `C:\Users\BHuq\Downloads\TrenchBroom-HL-1.23-Win64.zip` (74.5 MB, 363 files)
+- `C:\Users\BHuq\Downloads\TrenchBroom-HL-1.22-Win64.zip` (74.5 MB)
 - `C:\Users\BHuq\Downloads\TrenchBroom-HL-1.21-Win64.zip` (74.4 MB)
 - `C:\Users\BHuq\Downloads\TrenchBroom-HL-1.20-Win64.zip` (74.3 MB)
 - `shogo-re\out\package\ShogoMapping.zip`
@@ -260,6 +261,54 @@ moment it could lose them.**
 written at the END of a build, so the FIRST build after tag-and-reconfigure
 still links the old string. Tag, reconfigure, build, then **build again**, and
 check the exe actually contains the new version before packaging.
+
+## CLOSED - the engine's world limit is 32,768 units
+
+Played the ladder, walking down from the far end:
+
+    32,768    clean
+    65,536    jitter, slight but perceptible
+   131,072    jitter
+   262,144    jitter
+   393,000    indistinguishable from 262,144
+
+**The usable ceiling is about 32,768 units from the origin** - one SIXTEENTH of
+the compiler's 400,000 - and it shows as the weapon viewmodel shimmering while
+moving. No pillar z-fighting and no collision oddity at any rung: it is the
+viewmodel and nothing else.
+
+**The method survived its own falsification test**, which is what makes the
+number defensible rather than merely available. 393,000 and 262,144 share a
+float rung, so they HAD to look identical, and they did. Had the far room been
+visibly worse, float precision would not have been the cause and the ladder
+would have been measuring something else entirely.
+
+`softMapBounds` now declares 32,768 rather than 400,000, because that is the
+limit anyone can actually reach - a warning that cannot fire is not a guard.
+Both numbers stay documented in the config so the next reader knows why they
+disagree. SOFT is the right strength: it shimmers, it does not break, and a
+mapper who wants a huge outdoor space and will accept that should get a warning
+rather than a refusal. Still two doublings of headroom over Monolith's furthest
+world at 15,744.
+
+## hl-1.23 - one fix past 1.22
+
+Entity thumbnail size did nothing until you scrolled, then stopped growing part
+way. Two faults behind one symptom, both worth keeping:
+
+- **`invalidate()` marks the layout dirty; it does not ask for a repaint.**
+  `reload()` only invalidated, so a size change landed the next time something
+  else caused a paint. `setLayoutMode` always did both, which is exactly why the
+  mode switch never showed this and size always did.
+- **The up-scale cap did not move with the cell.** An entity's natural size is
+  its MODEL's bounds - unlike a texture, which is drawn into whatever rectangle
+  it is handed - and the layout scales that to fill the cell but never past
+  `maxUpScale`, left at a flat 1.5.
+
+The cap being a RATIO is why it looked like only some entities responded: one
+whose model is small against its cell still has headroom and grows, one already
+filling its cell stops at once. Same setting, opposite appearance - a good
+reminder that "it works for some" can be one bug rather than two.
 
 ## Queued, not started
 
