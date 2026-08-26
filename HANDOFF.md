@@ -1,4 +1,4 @@
-# Handoff — trenchbroom-mcp (+ TrenchBroom-HL fork) — 2026-08-25 (released hl-1.23)
+# Handoff — trenchbroom-mcp (+ TrenchBroom-HL fork) — 2026-08-25 (released hl-1.24)
 
 > The session closed the model-orientation question that three previous rounds
 > only argued about, and it closed it with a FIXTURE rather than with reasoning.
@@ -112,7 +112,8 @@ person will look.
 
 ## Artefacts
 
-- `C:\Users\BHuq\Downloads\TrenchBroom-HL-1.23-Win64.zip` (74.5 MB, 363 files)
+- `C:\Users\BHuq\Downloads\TrenchBroom-HL-1.24-Win64.zip` (74.5 MB, 363 files)
+- `C:\Users\BHuq\Downloads\TrenchBroom-HL-1.23-Win64.zip` (74.5 MB)
 - `C:\Users\BHuq\Downloads\TrenchBroom-HL-1.22-Win64.zip` (74.5 MB)
 - `C:\Users\BHuq\Downloads\TrenchBroom-HL-1.21-Win64.zip` (74.4 MB)
 - `C:\Users\BHuq\Downloads\TrenchBroom-HL-1.20-Win64.zip` (74.3 MB)
@@ -309,6 +310,72 @@ The cap being a RATIO is why it looked like only some entities responded: one
 whose model is small against its cell still has headroom and grows, one already
 filling its cell stops at once. Same setting, opposite appearance - a good
 reminder that "it works for some" can be one bug rather than two.
+
+## hl-1.24 - the textures tab
+
+- **A folder list beside the texture grid**, mirroring the entity tag panel.
+  Textures have no tags, so the folder they live in is the only structure they
+  come with - ninety collections for Shogo. The label drops the `textures` root,
+  since a prefix all ninety share costs the width that distinguishes them.
+- **The Group button is gone**, and the reasoning is worth keeping because it
+  reverses an earlier call. Group stayed for textures last week on the grounds
+  that directories were the only structure available; the folder list supplies
+  that structure BETTER, because it FILTERS rather than labels.
+- **Sort is a direction** (Name A-Z / Z-A), the "Size:" labels are gone from
+  both bars, and `MaterialBrowser::setSortOrder`/`setGroup` were deleted rather
+  than left as API forwarding to controls that no longer exist.
+- **Double-clicking an entity or group in the outliner** selects it and focuses
+  the camera, as Ctrl+U does. Layers keep their old meaning.
+- **The folder filter and both splitter widths persist.** The filter is stored
+  per GAME like entity favourites; the fallback applies only to the FIRST build
+  of the list, guarded on the list being empty rather than the selection, or
+  clearing your selection would be undone by the next document change.
+
+**IT HUNG THE EDITOR FIRST, AND THE DIAGNOSIS IS THE KEEPER.** Windows event
+1002 - "stopped interacting with Windows and was closed" - which writes NO crash
+report, because the handler only fires on an exception and a UI thread that
+never returns raises none. I spent the first minutes hunting a report that could
+not exist.
+
+`reload()` runs on every document change and rebuilt the list; restoring the
+selection called `setSelected` per row, each emitting `itemSelectionChanged`,
+each relayouting several thousand materials. Ninety rows, ninety relayouts, on
+the thread that answers the message pump. A `QSignalBlocker` and one filter
+application at the end. The entity tag list had the identical shape and got the
+same guard - it never hung only because nineteen rows over 1,300 definitions is
+forgiving, which is exactly why it was worth fixing before it grew.
+
+## Detail models cannot carry environment relief - measured
+
+Asked because gltf2abc/abcbuild mean models can be AUTHORED at all, which Shogo
+never had. `ZZ_Detail` puts identical geometry on a wall twice, as brushes and
+as an `.abc`, same texture, mirrored lighting.
+
+**Brushes self-shadow; the model does not.** Same shape, correctly oriented and
+wound, and it renders near-flat - no cast shadows, little contrast between
+faces. **`LightTableRes 64` made no perceptible difference, and my prediction
+that it would was wrong.** Cell size decides WHERE a model samples its light,
+not WHETHER it can be shadowed: the grid holds a smooth irradiance field, and a
+hard shadow edge is a lightmap phenomenon the processor computes against
+geometry. Refining the sampling of a field with no shadows in it still gives no
+shadows.
+
+So the mismatch is structural, and Monolith leaving detail models out of their
+environments was a correct call about their engine. **Brushes for anything read
+through shadow** (brush WorldModels are lightmapped too - 493 of 912 in the
+first twelve worlds); **models for what brushes cannot be** - curved and organic
+form, dense clutter, and self-lit things where having no shadow is no defect.
+
+**FOUR FIXTURE FAULTS BEFORE ONE REAL MEASUREMENT**, every one caught by a
+screenshot rather than by reasoning: lights that reached neither panel, a model
+facing backwards, inverted winding from an unre-wound Y/Z swap, and no texture
+coordinates at all. The last one I first recorded as a tool limitation - claiming
+abcbuild projects UVs - which was false; it reads `vt`, and gltf2abc reads
+TEXCOORD_0. Corrected in the file, since it would have been read as reference.
+
+The lesson worth carrying: the bounds check I was pleased with confirmed the
+model's EXTENTS while it sat backwards and inside out. A cheap check verifies
+exactly what it measures and nothing adjacent.
 
 ## Queued, not started
 
