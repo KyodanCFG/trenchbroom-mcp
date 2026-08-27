@@ -208,6 +208,30 @@ export function compileShogoMap({
   const logMatch = /^LOG:\s*(.+)$/m.exec(text);
   const logPath = logMatch ? logMatch[1].trim() : undefined;
 
+  // THE SPRITE-FLAG STAGE MUST BE VISIBLE FROM HERE, because its absence is
+  // not. The wrapper's post-OUTPUT stages write to stdout, NOT to the
+  // Processor's own per-map log - so a caller who verifies against that log
+  // sees a clean compile whether or not the stage ran. That is exactly how a
+  // stale server instance shipped 0-of-18 flagless sprite surfaces while
+  // every file on disk was correct (ZZ_Showcase, 2026-08-26). Surface the
+  // stage's lines in the result, and WARN when a map that plainly wants the
+  // stage (its own converter saw .spr textures is unknowable here, so the
+  // proxy is: the wrapper printed nothing about sprite flags at all) got
+  // nothing - which catches both a missing tool and a caller that never
+  // reached the wrapper.
+  const spriteLines = text
+    .split(/\r?\n/)
+    .filter((l) => /^sprite flags:/.test(l.trim()))
+    .map((l) => l.trim());
+  if (spriteLines.length === 0) {
+    warnings.push(
+      "the sprite-flag stage reported nothing - if this map has .spr surfaces they " +
+        "will not animate. A wrapper older than the stage, or a stale server build, " +
+        "skips it silently; run tools\sprflags.py on the .dat by hand and restart " +
+        "the MCP server."
+    );
+  }
+
   let lightMapNodes: number | undefined;
   let textureFlags: number | undefined;
   let worldModels: number | undefined;
@@ -287,6 +311,7 @@ export function compileShogoMap({
   const bits = [`${world}.dat ${datBytes} bytes`];
   if (worldModels !== undefined) bits.push(`${worldModels} world models`);
   if (lightMapNodes !== undefined) bits.push(`${lightMapNodes} light map nodes`);
+  if (spriteLines.length > 0) bits.push(spriteLines[0].replace(/^sprite flags:\s*/, "sprite flags: "));
   if (installedTo) bits.push("installed");
 
   return {
