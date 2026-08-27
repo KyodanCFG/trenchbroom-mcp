@@ -457,11 +457,28 @@ rather than theoretical, but it sits well outside `MaxBounds` so it stays a note
   repo, opposite meaning of the same word.)
 - **`get_git_describe()` runs at CMake CONFIGURE time.** Tag, then reconfigure,
   then build, or the binary keeps announcing the old version.
-- **Building from the Bash tool fails with "Cannot open include file:
-  'algorithm'"** — the MSVC environment is not present there. Build through
-  PowerShell with `vcvars64.bat`. A full `cmake --build .` also fails in the
-  Catch2 test-DISCOVERY step (test exes cannot find the Qt DLLs); that is not a
-  compile failure. `--target TrenchBroom` builds the app cleanly.
+- **Build with `.	b.bat`, from the repository root, through PowerShell.**
+  `TOOLCHAIN-WINDOWS.md` is the authority; the wrapper is checked in and needs
+  nothing filled in.
+
+  ```
+  .	b.bat cmake --build . --target TrenchBroom
+  ```
+
+  This entry used to say only "build through PowerShell with `vcvars64.bat`",
+  which is true and useless: it names no path, and the two that matter are both
+  non-obvious. Visual Studio here is **BuildTools**, not Community
+  (`C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools`), and
+  **cmake and ninja are not on PATH** - they are portable copies under
+  `Fable\.toolchain\`. Guessing Community cost a session an hour and produced
+  "cmake is not recognized", which points at neither. `tb.bat` resolves both.
+
+  Building from the **Bash tool** still fails with "Cannot open include file:
+  'algorithm'" - the MSVC environment is not present there, and `tb.bat` does
+  not help because the failure is the shell, not the paths. A full
+  `cmake --build .` also fails in the Catch2 test-DISCOVERY step (test exes
+  cannot find the Qt DLLs); that is not a compile failure.
+  `--target TrenchBroom` builds the app cleanly.
 - **`shogo-re` carries another thread's uncommitted work** — `HANDOFF.md`,
   `decisions.md`, `out/MAP-ELEMENTS.md`, and a junk `tools/--out` (577 KB of
   `06_Entrance.ed`, from `ed2map.py` taking `--out` as an output path). All left
