@@ -1,4 +1,4 @@
-# Handoff — trenchbroom-mcp (+ TrenchBroom-HL fork) — 2026-08-25 (released hl-1.24)
+# Handoff - trenchbroom-mcp (+ TrenchBroom-HL fork) - 2026-08-27 (released hl-1.36)
 
 > The session closed the model-orientation question that three previous rounds
 > only argued about, and it closed it with a FIXTURE rather than with reasoning.
@@ -376,6 +376,82 @@ TEXCOORD_0. Corrected in the file, since it would have been read as reference.
 The lesson worth carrying: the bounds check I was pleased with confirmed the
 model's EXTENTS while it sat backwards and inside out. A cheap check verifies
 exactly what it measures and nothing adjacent.
+
+## hl-1.25 to hl-1.36 - the asset browser session
+
+Twelve releases in one sitting, all in the browsers and the inspector. The
+commits carry the reasoning; this is the shape and the state.
+
+**The face panel** (1.25). Material owns its row - it shared one with Size, and
+a fixed-width "Size multi" was eliding the path you were actually reading. The
+name is CLICKABLE, revealing that material in the asset browser, and it is inert
+for `multi`, `none` and `(not found)` because a material the game could not load
+has no entry to reveal. An event filter, not a link-styled QLabel: the label
+stays text-selectable, and a rich-text link would need the name HTML-escaped.
+"multi" now says how multi - the distinct count, names in the tooltip.
+
+**Tooltips arrive at once** (1.25). 80ms wake-up, 400ms fall-asleep, as a style
+hint on the proxy style we already had. Ours are mostly icon-only, so the
+tooltip IS the label and Qt's 700ms reads as the button having no name.
+
+**Browser highlights are ranked by THICKNESS** (1.25), 2/4/6px for
+default/in-use/selected, layout-aware because List packs rows 4px apart. Colour
+alone at two pixels was invisible. Reveal pulses the selected cell three times.
+
+**Texture favourites** (1.26), mirroring entities: right-click to toggle, a
+Favorites row, stored per game.
+
+**Reveal now CLEARS what is hiding it** (1.27). Clicking a material name did
+nothing for a root-level texture while a folder was selected - the layout only
+holds what the filters let through. scrollToCell returns bool now, so reveal can
+try, and only on FAILURE reset the folder list and retry. Favourites persist in
+both browsers; the entity tag list persisted nothing at all before.
+
+**Texture tag CATEGORIES** (1.28-1.30), reusing MaterialNameTagMatcher, which
+existed for face tagging and was never asked anything by the browser. It takes a
+pattern LIST now, mirroring the entity matcher. Tags are the default source with
+folders one dropdown away, every row carries its count, and All carries the
+library total.
+
+**The Ctrl+Space crash** (1.31-1.32). TWO fixes, and the first was wrong -
+deferring the layout switch off the key stack changed nothing and the fault came
+back byte-identical. The dump (parsed by hand; no debugger installed - see
+scratchpad dmp.py/sym.py) showed the thread deep in Qt signal dispatch, which is
+a widget destroyed while Qt still has work FOR it. `delete m_mapView` became
+unparent + hide + deleteLater. Confirmed fixed in play.
+
+**Custom is COMPUTED, not matched** (1.31). The first version was a `custom/*`
+tag and the user's folder is called `proto`. The folder name is theirs to
+choose, and a glob cannot say "not one of these" - so the game config lists the
+STOCK roots and everything outside them is theirs. 78 of 4,201 here.
+
+**The contextual inspector** (1.33). Faces open the Face page, objects open
+Entity. Reads the SELECTION, not the mouse - shift-click selects a face, a plain
+click selects an object, which is exactly the distinction the pages are about.
+Never fires on a deselection, and never switches off the asset browser.
+
+**Ctrl+U reveals in the outliner too** (1.34), expanding ancestors first.
+
+**Open-folder affordances** (1.34-1.36). A "..." on the Custom row for materials;
+a "..." menu (Models / Skins / Sprites) beside the entity tag list. Folders come
+from a new `assetFolders` config key - "project/MODELS" is one game's fact and
+this is a general editor. Both create the folder if absent.
+
+### State, and what is NOT done
+
+- **hl-1.36 is deployed and pushed.** The live game config at
+  `%APPDATA%\TrenchBroom\games\Shogo` is current.
+- **THE KIT IS BEHIND.** `ShogoMapping.zip` / `_Public.zip` were rebuilt at
+  00:20 with the `stockMaterialRoots` config but NOT `assetFolders`, and they
+  bundle **TrenchBroom-HL-1.31**. Rebuild both and swap in the 1.36 zip when the
+  config settles.
+- **Untested by anyone**: everything from 1.33 on. 1.32's crash fix is confirmed
+  in play; the rest was reported working up to 1.31, and 1.36 fixes a "..."
+  button the user found dead on arrival.
+- Two new config keys, both invisible to stock TrenchBroom because upstream
+  reads the config by naming the keys it wants: `stockMaterialRoots` (1.31) and
+  `assetFolders` (1.36). The kit's stock-compatibility collapse only touches
+  brushface pattern lists and does not need to know about either.
 
 ## Queued, not started
 
