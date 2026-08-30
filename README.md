@@ -1,29 +1,29 @@
 # trenchbroom-mcp
 
-MCP server for editing Quake-format `.map` files — the format TrenchBroom
+MCP server for editing Quake-format `.map` files, the format TrenchBroom
 reads and writes. TrenchBroom has no scripting API, so this server treats the
 map file itself as the API: an AI client edits the file, and TrenchBroom picks
 the change up.
 
 With the [patched TrenchBroom](#live-editing) the change appears in the editor
-as it happens, keeping your camera, selection and undo history — and it can be
+as it happens, keeping your camera, selection and undo history, and it can be
 undone like any other edit. Without it, everything still works; you press
 reload.
 
 ## What it can do
 
-- **Read**: `map_overview`, `list_entities`, `get_entity` — counts, bounds,
+- **Read**: `map_overview`, `list_entities`, `get_entity`: counts, bounds,
   TrenchBroom layers/groups (`_tb_*` metadata), textures, per-entity detail.
 - **Edit**: `add_entity`, `set_entity_properties`, `delete_entity`,
   `add_brush_box`, `delete_brush`, `translate_entity`. Every edit snapshots
   the file first; `undo_last_edit` / `list_backups` roll back.
-- **See**: `render_preview` draws top/front/side orthographic SVG views —
-  brush footprints computed by real half-space intersection, so the model can
+- **See**: `render_preview` draws top/front/side orthographic SVG views;
+  brush footprints are computed by real half-space intersection, so the model can
   reason about layout instead of editing blind.
 - **Know the game**: `fgd_classes` / `fgd_class` parse an FGD entity
   definition file, with base-class inheritance resolved.
 - **Compile**: `compile_map` runs [ericw-tools](https://ericwa.github.io/ericw-tools/)
-  and reports what the compiler said — errors, grouped warnings, and leaks,
+  and reports what the compiler said: errors, grouped warnings, and leaks,
   with the coordinate the leak escaped from.
 - **Play**: `launch_map` installs the compiled `.bsp` into the game's maps
   directory and starts an engine on it, reporting what the engine said if it
@@ -49,12 +49,12 @@ npm install
 npm run build
 ```
 
-Note the absolute path to `dist/index.js` — every client below needs it. On
+Note the absolute path to `dist/index.js`; every client below needs it. On
 Windows it looks like `C:\Users\you\src\trenchbroom-mcp\dist\index.js`.
 
 ### Or: a single file, no clone, no build
 
-`npm run bundle` produces `dist/trenchbroom-mcp.mjs` — the whole server and its
+`npm run bundle` produces `dist/trenchbroom-mcp.mjs`: the whole server and its
 dependencies in one ~760 kb file that runs anywhere Node 20+ is installed, with
 no `node_modules` beside it:
 
@@ -68,7 +68,7 @@ says `dist/index.js`, you can say `trenchbroom-mcp.mjs` instead.
 
 This is a plain [MCP](https://modelcontextprotocol.io/) server speaking JSON-RPC
 over stdio, with nothing vendor-specific in it, so any MCP client can drive
-it — including local models. Three setups follow; they all say the same thing
+it, including local models. Three setups follow; they all say the same thing
 in different files.
 
 > **Whatever the client, restart it after `npm run build`.** MCP servers are
@@ -88,8 +88,8 @@ elsewhere, so use an absolute one. Check it with `claude mcp list`; you want
 
 ### Claude Desktop
 
-Edit `claude_desktop_config.json` — on Windows
-`%APPDATA%\Claude\`, on macOS `~/Library/Application Support/Claude/` — and add
+Edit `claude_desktop_config.json` (on Windows
+`%APPDATA%\Claude\`, on macOS `~/Library/Application Support/Claude/`) and add
 an entry under `mcpServers`:
 
 ```json
@@ -108,7 +108,7 @@ already has other servers, add this alongside them rather than replacing them.
 
 ### A local model
 
-Any client that supports MCP and lets you point at a local backend works —
+Any client that supports MCP and lets you point at a local backend works:
 [LM Studio](https://lmstudio.ai/), [Goose](https://block.github.io/goose/),
 [Cline](https://cline.bot/) or [Continue](https://continue.dev/) in VS Code, or
 [LibreChat](https://www.librechat.ai/), among others. They differ in where the
@@ -122,8 +122,8 @@ will pick the right tool with wrong numbers, which is worse than failing,
 because the map still changes. In practice a 30B-class coding model is about
 the floor.
 
-Start a new model on the read-only tools — `map_overview`, `list_entities`,
-`get_entity`, `fgd_class`, `render_preview` — and see how it does before letting
+Start a new model on the read-only tools (`map_overview`, `list_entities`,
+`get_entity`, `fgd_class`, `render_preview`) and see how it does before letting
 it write. The snapshots and `undo_last_edit` are there either way.
 
 ## Using it
@@ -136,14 +136,15 @@ origin with 16 unit walls"*.
 ## Live editing
 
 By default you reload the map in TrenchBroom yourself after the server edits
-it — TrenchBroom does not watch the file.
+it; TrenchBroom does not watch the file.
 
 There is a patched build that does. It notices when another program changes
 the open map and applies the change in place, keeping your camera, selection,
-hidden and locked objects, and undo history — and the change itself becomes
+hidden and locked objects, and undo history. The change itself becomes
 undoable, so <kbd>Ctrl</kbd>+<kbd>Z</kbd> undoes an edit made by the AI. With
-it, edits simply appear in the editor as they happen. See the `hotload-map-file`
-branch of the TrenchBroom fork.
+it, edits simply appear in the editor as they happen. A version of this is
+proposed upstream in
+[TrenchBroom#5453](https://github.com/TrenchBroom/TrenchBroom/issues/5453).
 
 Without the patch everything still works; you just press reload.
 
@@ -175,7 +176,7 @@ to a model:
 
 ## Playing
 
-`launch_map` copies the compiled `.bsp` — and its `.lit`, if there is one —
+`launch_map` copies the compiled `.bsp` (and its `.lit`, if there is one)
 into `<game_dir>/<mod>/maps/`, then starts the engine on that map with
 `-basedir`, `-game` and `+map`, which QuakeSpasm, vkQuake and ironwail all
 understand. Anything engine-specific goes in `extra_args`.
@@ -183,7 +184,7 @@ understand. Anything engine-specific goes in `extra_args`.
 The engine is started detached, so it outlives the request and you can go and
 play. Its output is written to a file rather than a pipe, because a pipe dies
 with the server and takes the engine with it. If the engine gives up during
-the first few seconds — a missing `pak0.pak`, a map it cannot find — that is
+the first few seconds (a missing `pak0.pak`, a map it cannot find), that is
 reported back with whatever it said, taken from its output and from
 `qconsole.log`, which `-condebug` asks it to write.
 
@@ -192,7 +193,7 @@ reported back with whatever it said, taken from its output and from
   -> qbsp ok, vis ok, light ok | launched e1m1 (pid 15588)
 ```
 
-The tools drop a `.log` beside the map — qbsp names its after the map, vis and
+The tools drop a `.log` beside the map: qbsp names it after the map, vis and
 light write a fixed `vis.log` and `light.log`. Everything in them has already
 been parsed out of the output, so they are removed afterwards; pass
 `keep_logs` to leave them. A log that was already there before the compile ran
@@ -200,7 +201,7 @@ is left alone.
 
 ## Workflow notes
 
-- Save in TrenchBroom before asking for edits — the server reads whatever is
+- Save in TrenchBroom before asking for edits; the server reads whatever is
   on disk, not what is in the editor.
 - Do not make changes in TrenchBroom and via the server at the same time. With
   the patched build the editor asks before discarding unsaved work; without
@@ -208,7 +209,7 @@ is left alone.
 - Writes are atomic (temp file + rename, retried briefly if the OS has the
   file locked). Snapshots live in `<mapdir>/.tb-mcp/backups/`, capped at 20,
   and that directory ignores itself in git.
-- The comments at the top of a map file (`// Game: Quake`) are preserved —
+- The comments at the top of a map file (`// Game: Quake`) are preserved;
   TrenchBroom picks the game and format from them.
 
 ## What this is actually for
@@ -219,18 +220,17 @@ editing useless: **the round trip.** You don't export, or reload, or context
 switch. You say something, and the map changes in front of you, in the editor
 you were already using, with your camera where you left it and your selection
 intact. And because the change arrives as an ordinary undoable edit,
-<kbd>Ctrl</kbd>+<kbd>Z</kbd> is the escape hatch — which is what makes it safe
-to actually try things rather than carefully vetting each one.
+<kbd>Ctrl</kbd>+<kbd>Z</kbd> is the escape hatch. That is what makes it safe
+to try things instead of carefully vetting each one.
 
 The subtler shift: the model can *see* the map. Between `map_overview`,
-`list_entities` and the SVG previews, it reasons about your actual level — its
-bounds, its entity graph, its layout — instead of generating plausible-looking
-map text blind. That's the difference between a code generator and a
-collaborator.
+`list_entities` and the SVG previews, it reasons about your actual level (its
+bounds, its entity graph, its layout) instead of generating plausible-looking
+map text blind.
 
 ### Typical use
 
-The honest bread-and-butter is **tedium at scale**. Dim every light by 30%.
+The bread and butter is **tedium at scale**. Dim every light by 30%.
 Retarget `door1` to `bridge_door` everywhere. Delete every monster for a
 no-combat build. Bump all health pickups up 8 units because they're clipping
 the floor. These are minutes of clicking, or a script you'd have to write, and
@@ -246,21 +246,21 @@ intervals. Axis-aligned boxes are exactly what greyboxing is, so the current
 limitation bites much less here than it would for detail work.
 
 Fourth, and underrated: **learning a game's entity vocabulary.** The FGD tools
-mean the model can tell you what `func_door` actually supports in *your* game —
-including a custom FGD for a mod — rather than half-remembering Quake trivia.
+mean the model can tell you what `func_door` actually supports in *your* game
+(including a custom FGD for a mod) instead of half-remembering Quake trivia.
 
 ### Where it gets genuinely interesting
 
-**Parametric level design.** Not "generate me a level," but "make the courtyard
-25% bigger and move everything that was against the north wall." Iterating on
-layout at the speed of conversation, with the editor as live preview. The map
+**Parametric level design.** "Make the courtyard 25% bigger and move everything
+that was against the north wall." Iterating on layout at the speed of
+conversation, with the editor as live preview. The map
 stops being a static artifact and becomes something you can nudge.
 
 **Closing the compile loop.** `compile_map` and `launch_map` make the compiler
 part of the
 conversation rather than a separate ritual. Leaks are the case that matters:
 the compiler reports one as a warning, exits successfully, and quietly
-produces a broken build — so the tool treats a leak as failure and hands back
+produces a broken build, so the tool treats a leak as failure and hands back
 the coordinate it escaped from. "You leaked at 0 0 64" is a fixable sentence,
 and fix, recompile, verify is a loop a machine is good at running. Quake
 mapping's most painful chore becomes a dialogue, and "compile it and run it"
@@ -271,7 +271,7 @@ to `func_detail`. Renumber a broken trigger chain. Port entity names from Quake
 to a mod's conventions. These are "I'd rather rebuild the level" jobs today.
 
 **Your own games.** TrenchBroom's generic game config plus custom FGDs means
-this stack points at anything brush-based, not just Quake.
+this stack points at any brush-based game, not Quake alone.
 
 **Two people, one map.** Nothing about the design assumes the other editor is
 an AI. It's "another program changed the file." Two mappers with a shared file,
@@ -280,7 +280,7 @@ or a generator running continuously while you hand-detail, both work.
 ### The honest ceiling
 
 It can't do rotated or non-box geometry, so it greyboxes rather than finishes.
-It has no aesthetic judgement — it'll place lights at perfect intervals, which
+It has no aesthetic judgement: it'll place lights at perfect intervals, which
 is exactly what a good mapper wouldn't do. And it can't play the level, so
 nothing it makes has been evaluated for whether it's *fun*.
 
@@ -307,5 +307,7 @@ npm test
 ## Roadmap
 
 - More brush primitives (wedge, cylinder), rotation, texture retargeting.
-- Upstreaming the editor patch — TrenchBroom issue #3505 asked for external
-  reload in 2020.
+- Upstreaming the editor patch: proposed in
+  [TrenchBroom#5453](https://github.com/TrenchBroom/TrenchBroom/issues/5453),
+  starting with a simplified reload dialog per maintainer feedback. (#3505 asked
+  for external reload back in 2020.)
