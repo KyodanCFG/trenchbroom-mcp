@@ -42,7 +42,7 @@ const server = new McpServer({ name: "trenchbroom-mcp", version: "0.5.0" });
 // reaches disk and is then discarded - and the dialog can sit behind the
 // editor window while it happens.
 const EDITOR_NOTE =
-  " Writes the file; TrenchBroom-HL reloads it automatically, but asks first - and defaults to KEEPING the editor version - if the document has unsaved edits.";
+  " Writes the file; if the map is open in TrenchBroom, reload it there (the editor detects the change and asks - keep the editor version if you have unsaved edits, then merge by hand).";
 
 // ---------- helpers ----------
 
