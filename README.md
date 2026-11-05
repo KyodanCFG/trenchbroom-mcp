@@ -287,6 +287,70 @@ nothing it makes has been evaluated for whether it's *fun*.
 The right mental model is a fast, tireless assistant who knows the file format
 cold and has no taste. You bring the taste.
 
+## CSG and construction tools
+
+TrenchBroom brushes are convex, so everything beyond a box has to be built
+from planes. These tools do that arithmetic (half-space clipping, convex hulls,
+polygon winding) so the client can ask for a shape instead of computing
+plane triples. All of them write ordinary brushes back to the `.map`, keep the
+face format (Valve 220 or standard) of the surrounding map, and snapshot the
+file first like every other edit, so `undo_last_edit` rolls them back. The
+geometry lives in `src/map/csg.ts`.
+
+**Primitives**
+
+| Tool | Makes |
+|---|---|
+| `add_brush_wedge` | Ramp: a box whose top slopes toward `+x`, `-x`, `+y` or `-y`. |
+| `add_brush_prism` | A 2D polygon (hull taken) extruded between two heights. |
+| `add_brush_cylinder` | Regular n-gon prism around a centre. |
+| `add_brush_hull` | Convex hull of 4+ points. The general primitive; the others reduce to it. |
+| `add_pipe` | Straight n-gon prism between two points at any angle. |
+| `add_stairs` | Staircase in a box; each step is solid down to the floor. |
+| `add_arch` | Semicircular arch of voussoir blocks. |
+| `add_catwalk` | Deck slab with optional rails and support legs. |
+| `add_room_trim` | Bevelled base trim, cornice, ribs and corner pilasters round a room. |
+
+**Booleans**
+
+| Tool | Does |
+|---|---|
+| `subtract_box` | Carve a box out of one brush or a whole entity (doorways, windows). |
+| `subtract_brush` | A minus B for any two convex brushes, e.g. slanted cutters. |
+| `subtract_path` | Carve a trench or corridor along a polyline. |
+| `intersect_brushes` | A and B: the overlap. |
+| `union_brushes` | A or B: one merged brush when the union is convex, otherwise a non-overlapping set. |
+| `hollow_brush` | Turn an axis-aligned box into a room with walls of a given thickness. |
+| `clip_brush` | Cut with a plane, keeping the back, the front, or both halves. |
+
+Because brushes are convex, a subtraction yields up to one piece per face of
+the cutter, and the result is always a set of valid convex brushes with no
+overlaps.
+
+**Transforms, surfaces and organisation**
+
+- `rotate_brush` rotates about any axis and pivot. Valve-format texture
+  alignment stays locked to the geometry.
+- `clone_brushes` makes arrays (optionally mirrored, with a per-copy offset and
+  rotation): ribs, columns, rings.
+- `bevel_brush` chamfers edges. `set_face_texture` sets texture, scale,
+  rotation and offset by face index, by direction (`+z`, `-x`, ...) or for all
+  faces.
+- `group_brushes`, `add_layer` and `move_to_layer` create TrenchBroom groups
+  and layers so generated geometry stays selectable and hideable.
+- Shape tools take a `snap` flag to round plane points to the grid.
+
+**Checking the result**
+
+- `validate_map` reports degenerate or non-convex brushes, tiny or huge
+  brushes, duplicates, brushes outside optional worldspawn bounds
+  (`level_size`, `level_units`), and, if you pass a `materials_path` JSON file,
+  textures that are not in it.
+- `render_shaded` produces a flat-shaded, z-buffered 3D PNG from a given eye
+  and target using a small software rasteriser (about a second for thousands
+  of brushes), with an optional height clip for cutaways. It needs no GPU and
+  no running editor.
+
 ## Testing
 
 ```
@@ -295,9 +359,11 @@ npm test
 
 ## Limitations
 
-- Brushes can only be created as axis-aligned boxes. No wedges, cylinders, or
-  rotation, so this builds blockouts rather than finished geometry.
-- No texture alignment control beyond what is preserved on untouched faces.
+- Brushes are convex, as in the format itself. Curved surfaces are
+  approximated with n-gon prisms and hulls; there are no patches or brush
+  entities with their own geometry tools beyond grouping.
+- Texture alignment is controlled per face by `set_face_texture`; there is no
+  automatic alignment across adjacent faces.
 - Editing a map by hand while the server is also editing it is not supported.
 - Compiling needs ericw-tools installed separately; it is not bundled, and
   launching needs an engine and the game data it expects.
